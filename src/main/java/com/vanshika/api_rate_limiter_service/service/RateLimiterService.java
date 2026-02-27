@@ -2,7 +2,9 @@ package com.vanshika.api_rate_limiter_service.service;
 
 import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 import com.vanshika.api_rate_limiter_service.repository.InMemoryBucketRepository;
+import org.springframework.stereotype.Service;
 
+@Service
 public class RateLimiterService {
 
   private final InMemoryBucketRepository repository;
