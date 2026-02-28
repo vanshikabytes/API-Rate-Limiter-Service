@@ -1,3 +1,6 @@
-spring:
-  application:
-    name: api-rate-limiter-service
+server:
+  port: 8080
+
+rate-limiter:
+  capacity: 3
+  refill-rate: 1

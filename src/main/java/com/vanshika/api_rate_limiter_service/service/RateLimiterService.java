@@ -1,5 +1,6 @@
 package com.vanshika.api_rate_limiter_service.service;
 
+import com.vanshika.api_rate_limiter_service.config.RateLimiterProperties;
 import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 import com.vanshika.api_rate_limiter_service.repository.InMemoryBucketRepository;
 import org.springframework.stereotype.Service;
@@ -7,26 +8,32 @@ import org.springframework.stereotype.Service;
 @Service
 public class RateLimiterService {
 
-  private final InMemoryBucketRepository repository;
+    private final InMemoryBucketRepository repository;
+    private final RateLimiterProperties properties;
 
-  private final long capacity = 10;
-  private final long refillRate = 5;
+    public RateLimiterService(InMemoryBucketRepository repository,
+            RateLimiterProperties properties) {
+        this.repository = repository;
+        this.properties = properties;
+    }
 
-  public RateLimiterService() {
-    this.repository = new InMemoryBucketRepository();
-  }
+    public boolean isAllowed(String key) {
 
-  public boolean isAllowed(String key) {
+        TokenBucket bucket = repository.getBucket(
+                key,
+                properties.getCapacity(),
+                properties.getRefillRate());
 
-    TokenBucket bucket = repository.getBucket(key, capacity, refillRate);
+        return bucket.tryConsume();
+    }
 
-    return bucket.tryConsume();
-  }
+    public long getRemainingTokens(String key) {
 
-  public long getRemainingTokens(String key) {
+        TokenBucket bucket = repository.getBucket(
+                key,
+                properties.getCapacity(),
+                properties.getRefillRate());
 
-    TokenBucket bucket = repository.getBucket(key, capacity, refillRate);
-
-    return bucket.getRemainingTokens();
-  }
+        return bucket.getRemainingTokens();
+    }
 }
