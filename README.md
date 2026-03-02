@@ -1,62 +1,64 @@
 # API Rate Limiter Service
 
+## 📌 Overview
+
 A production-ready API Rate Limiting system built using Spring Boot.
 
-## Tech Stack
-
-- Java 17
-- Spring Boot 4
-- Maven
-- YAML configuration
-
-## Architecture
-
-Layered architecture:
-
-- Controller
-- Service
-- Repository
-- Model
+This project implements the **Token Bucket Algorithm** to enforce API rate limits with configurable capacity and refill rate.
 
 ---
 
-This repository will progressively implement:
+## Phase 1 – Completed
 
-- Phase 1: Core rate limiting
-- Phase 2: Distributed rate limiting
-- Phase 3: Advanced optimizations
+### Implemented Features
 
-## Current Implementation Status
-
-### Phase 1 (In Progress)
-
-- Token Bucket algorithm
+- Token Bucket rate limiting algorithm
 - Thread-safe implementation
-- In-memory bucket storage
-- Service layer abstraction
+- Configurable capacity and refill rate
+- HTTP 429 response when rate limit exceeded
+- Rate limit headers:
+  - `X-Rate-Limit-Remaining`
+  - `X-Rate-Limit-Capacity`
+  - `X-Rate-Limit-Refill-Rate`
+- Manual reset endpoint
+- Service status endpoint
+- In-memory storage using `ConcurrentHashMap`
+- Automatic cleanup of inactive buckets
+- Unit tests (6 test cases)
 
-## Design Decisions
+---
 
-### Token Bucket Algorithm
+## 🏗 Architecture
 
-Implements O(1) rate limiting with time-based refill.
+Layered architecture:
 
-### Thread Safety
+- **Controller**
+- **Service**
+- **Repository**
+- **Model**
+- **Exception Handling**
+- **Configuration**
 
-- AtomicLong used for token counter
-- synchronized block ensures safe refill and consume operations
-- ConcurrentHashMap ensures safe multi-user bucket storage
+### Request Flow
 
-### Extensibility
-
-Repository layer allows easy migration from in-memory storage to Redis or distributed cache in future phases.
-
-## Flow
-
-Client → Controller (Phase 4)
-↓
-RateLimiterService
-↓
-InMemoryBucketRepository
-↓
+Client  
+↓  
+Controller  
+↓  
+RateLimiterService  
+↓  
+InMemoryBucketRepository  
+↓  
 TokenBucket
+
+---
+
+## ⚙ Configuration
+
+Configured via `application.yaml`
+
+```yaml
+rate-limiter:
+  capacity: 10
+  refillRate: 5
+```
