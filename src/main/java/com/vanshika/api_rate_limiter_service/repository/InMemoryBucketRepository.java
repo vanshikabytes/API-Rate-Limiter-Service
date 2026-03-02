@@ -17,4 +17,8 @@ public class InMemoryBucketRepository {
         key,
         k -> new TokenBucket(capacity, refillRatePerSecond));
   }
+
+  public void removeBucket(String key) {
+    bucketStore.remove(key);
+  }
 }

@@ -36,4 +36,8 @@ public class RateLimiterService {
 
         return bucket.getRemainingTokens();
     }
+
+    public void reset(String key) {
+        repository.removeBucket(key);
+    }
 }
