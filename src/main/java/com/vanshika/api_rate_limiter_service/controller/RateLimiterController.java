@@ -26,14 +26,18 @@ public class RateLimiterController {
 
     boolean allowed = rateLimiterService.isAllowed(key);
     long remaining = rateLimiterService.getRemainingTokens(key);
+    long resetTime = System.currentTimeMillis() + 60000;
+
+    String type = key.contains(":") ? key.split(":")[0] : "user";
+    long capacity = properties.getLimits().getOrDefault(type, properties.getLimits().get("user")).getCapacity();
 
     RateLimitResponse response = new RateLimitResponse(key, remaining);
 
     if (!allowed) {
       return ResponseEntity.status(429)
-          .header("X-Rate-Limit-Remaining", String.valueOf(remaining))
-          .header("X-Rate-Limit-Capacity", String.valueOf(properties.getCapacity()))
-          .header("X-Rate-Limit-Refill-Rate", String.valueOf(properties.getRefillRate()))
+          .header("X-RateLimit-Remaining", String.valueOf(remaining))
+          .header("X-RateLimit-Capacity", String.valueOf(capacity))
+          .header("X-RateLimit-Reset", String.valueOf(resetTime))
           .body(new ApiResponse<>(
               false,
               "Rate limit exceeded",
@@ -41,9 +45,9 @@ public class RateLimiterController {
     }
 
     return ResponseEntity.ok()
-        .header("X-Rate-Limit-Remaining", String.valueOf(remaining))
-        .header("X-Rate-Limit-Capacity", String.valueOf(properties.getCapacity()))
-        .header("X-Rate-Limit-Refill-Rate", String.valueOf(properties.getRefillRate()))
+        .header("X-RateLimit-Remaining", String.valueOf(remaining))
+        .header("X-RateLimit-Capacity", String.valueOf(capacity))
+        .header("X-RateLimit-Reset", String.valueOf(resetTime))
         .body(new ApiResponse<>(
             true,
             "Request allowed",
@@ -61,5 +65,14 @@ public class RateLimiterController {
             true,
             "Rate limit reset successfully",
             null));
+  }
+
+  @GetMapping("/status")
+  public ResponseEntity<ApiResponse<String>> status() {
+    return ResponseEntity.ok(
+        new ApiResponse<>(
+            true,
+            "Rate Limiter Service is running",
+            "OK"));
   }
 }

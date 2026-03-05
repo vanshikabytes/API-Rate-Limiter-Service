@@ -1,5 +1,6 @@
 package com.vanshika.api_rate_limiter_service.config;
 
+import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -7,22 +8,44 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "rate-limiter")
 public class RateLimiterProperties {
 
-  private long capacity;
-  private long refillRate;
+  private Map<String, LimitConfig> limits;
 
-  public long getCapacity() {
-    return capacity;
+  public Map<String, LimitConfig> getLimits() {
+    return limits;
   }
 
-  public void setCapacity(long capacity) {
-    this.capacity = capacity;
+  public void setLimits(Map<String, LimitConfig> limits) {
+    this.limits = limits;
   }
 
-  public long getRefillRate() {
-    return refillRate;
-  }
+  public static class LimitConfig {
 
-  public void setRefillRate(long refillRate) {
-    this.refillRate = refillRate;
+    private long capacity;
+    private long refillRate;
+    private long windowSeconds;
+
+    public long getCapacity() {
+      return capacity;
+    }
+
+    public void setCapacity(long capacity) {
+      this.capacity = capacity;
+    }
+
+    public long getRefillRate() {
+      return refillRate;
+    }
+
+    public void setRefillRate(long refillRate) {
+      this.refillRate = refillRate;
+    }
+
+    public long getWindowSeconds() {
+      return windowSeconds;
+    }
+
+    public void setWindowSeconds(long windowSeconds) {
+      this.windowSeconds = windowSeconds;
+    }
   }
 }

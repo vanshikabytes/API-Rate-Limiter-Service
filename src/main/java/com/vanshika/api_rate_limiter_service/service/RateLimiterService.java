@@ -18,23 +18,34 @@ public class RateLimiterService {
     }
 
     public boolean isAllowed(String key) {
-
+        RateLimiterProperties.LimitConfig config = resolveConfig(key);
         TokenBucket bucket = repository.getBucket(
                 key,
-                properties.getCapacity(),
-                properties.getRefillRate());
+                config.getCapacity(),
+                config.getRefillRate());
 
         return bucket.tryConsume();
     }
 
     public long getRemainingTokens(String key) {
-
+        RateLimiterProperties.LimitConfig config = resolveConfig(key);
         TokenBucket bucket = repository.getBucket(
                 key,
-                properties.getCapacity(),
-                properties.getRefillRate());
+                config.getCapacity(),
+                config.getRefillRate());
 
         return bucket.getRemainingTokens();
+    }
+
+    private RateLimiterProperties.LimitConfig resolveConfig(String key) {
+        String type = key.contains(":") ? key.split(":")[0] : "user";
+        RateLimiterProperties.LimitConfig config = properties.getLimits().get(type);
+
+        if (config == null) {
+            // Default to 'user' limits if type not found
+            return properties.getLimits().get("user");
+        }
+        return config;
     }
 
     public void reset(String key) {

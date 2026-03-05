@@ -16,8 +16,11 @@ class RateLimiterServiceTest {
     InMemoryBucketRepository repository = new InMemoryBucketRepository();
 
     RateLimiterProperties properties = new RateLimiterProperties();
-    properties.setCapacity(1);
-    properties.setRefillRate(0);
+    RateLimiterProperties.LimitConfig userConfig = new RateLimiterProperties.LimitConfig();
+    userConfig.setCapacity(1);
+    userConfig.setRefillRate(0);
+
+    properties.setLimits(java.util.Map.of("user", userConfig));
 
     service = new RateLimiterService(repository, properties);
   }

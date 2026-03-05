@@ -2,5 +2,18 @@ server:
   port: 8080
 
 rate-limiter:
-  capacity: 2
-  refill-rate: 0
+  limits:
+    user:
+      capacity: 100
+      refillRate: 100
+      windowSeconds: 60
+
+    ip:
+      capacity: 200
+      refillRate: 200
+      windowSeconds: 60
+
+    apiKey:
+      capacity: 500
+      refillRate: 500
+      windowSeconds: 60

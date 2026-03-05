@@ -24,41 +24,47 @@ This project implements the **Token Bucket Algorithm** to enforce API rate limit
 - Service status endpoint
 - In-memory storage using `ConcurrentHashMap`
 - Automatic cleanup of inactive buckets
-- Unit tests (6 test cases)
+- Unit tests
+- Detailed Postman collection
 
 ---
 
 ## 🏗 Architecture
 
 Layered architecture:
+- **Controller**: REST endpoints and header management
+- **Service**: Business logic and config resolution
+- **Repository**: In-memory bucket storage
+- **Model**: Token Bucket implementation
 
-- **Controller**
-- **Service**
-- **Repository**
-- **Model**
-- **Exception Handling**
-- **Configuration**
+---
 
-### Request Flow
+## 🚀 How to Run
 
-Client  
-↓  
-Controller  
-↓  
-RateLimiterService  
-↓  
-InMemoryBucketRepository  
-↓  
-TokenBucket
+### Prerequisites
+- JDK 17 or higher
+- Maven (or use provided `./mvnw`)
+
+### Steps
+1. **Clone the repository** (if not already done).
+2. **Run the application**:
+   ```bash
+   ./mvnw spring-boot:run
+   ```
+3. **Test APIs**:
+   Import `API-Rate-Limiter-Collection.json` into Postman and try the requests.
 
 ---
 
 ## ⚙ Configuration
 
-Configured via `application.yaml`
+Configured via `src/main/resources/application.yaml`. You can define limits per-identifier type (`user`, `ip`, `apiKey`).
 
 ```yaml
 rate-limiter:
-  capacity: 10
-  refillRate: 5
+  limits:
+    user:
+      capacity: 100
+      refillRate: 100
+      windowSeconds: 60
 ```

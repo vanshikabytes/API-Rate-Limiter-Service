@@ -1,6 +1,8 @@
 package com.vanshika.api_rate_limiter_service.repository;
 
 import com.vanshika.api_rate_limiter_service.model.TokenBucket;
+
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Repository;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -20,5 +22,10 @@ public class InMemoryBucketRepository {
 
   public void removeBucket(String key) {
     bucketStore.remove(key);
+  }
+
+  @Scheduled(fixedRate = 60000)
+  public void cleanup() {
+    bucketStore.entrySet().removeIf(entry -> entry.getValue().isExpired());
   }
 }

@@ -35,4 +35,15 @@ class TokenBucketTest {
 
     assertTrue(bucket.tryConsume());
   }
+
+  @Test
+  void shouldAllow100RequestsAndReject101() {
+    TokenBucket bucket = new TokenBucket(100, 0);
+
+    for (int i = 0; i < 100; i++) {
+      assertTrue(bucket.tryConsume(), "Request " + (i + 1) + " should be allowed");
+    }
+
+    assertFalse(bucket.tryConsume(), "Request 101 should be rejected");
+  }
 }

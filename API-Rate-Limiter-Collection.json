@@ -27,9 +27,19 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": ""
+          "raw": "http://localhost:8080/api/rate-limit/user1",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "rate-limit",
+            "user1"
+          ]
         },
-        "description": "This is a GET request and it is used to \"get\" data from an endpoint. There is no request body for a GET request, but you can use query parameters to help specify the resource you want data on (e.g., in this request, we have `id=1`).\n\nA successful GET response will have a `200 OK` status, and should include some kind of response body - for example, HTML web content or JSON data."
+        "description": "Examine the rate limit for a specific key (e.g., user:user1, ip:127.0.0.1)."
       },
       "response": []
     },
@@ -58,7 +68,20 @@
       "name": "Service Status",
       "request": {
         "method": "GET",
-        "header": []
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/rate-limit/status",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "rate-limit",
+            "status"
+          ]
+        }
       },
       "response": []
     }

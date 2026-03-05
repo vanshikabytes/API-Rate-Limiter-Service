@@ -31,26 +31,30 @@ public class TokenBucket {
     private void refill() {
         Instant now = Instant.now();
 
-        long secondsElapsed =
-                now.getEpochSecond() - lastRefillTime.getEpochSecond();
+        long secondsElapsed = now.getEpochSecond() - lastRefillTime.getEpochSecond();
 
         if (secondsElapsed > 0) {
             long tokensToAdd = secondsElapsed * refillRatePerSecond;
 
-            long newTokenCount =
-                    Math.min(capacity, tokens.get() + tokensToAdd);
+            long newTokenCount = Math.min(capacity, tokens.get() + tokensToAdd);
 
             tokens.set(newTokenCount);
             lastRefillTime = now;
         }
     }
 
-    public long getRemainingTokens() {
+    public synchronized long getRemainingTokens() {
         refill();
         return tokens.get();
     }
 
     public long getCapacity() {
         return capacity;
+    }
+
+    public boolean isExpired() {
+        Instant now = Instant.now();
+        long secondsElapsed = now.getEpochSecond() - lastRefillTime.getEpochSecond();
+        return secondsElapsed > 300; // 5 minutes = 300 seconds
     }
 }
