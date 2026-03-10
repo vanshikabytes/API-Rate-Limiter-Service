@@ -2,18 +2,43 @@ server:
   port: 8080
 
 rate-limiter:
+  cleanupTtlSeconds: 300
+  cleanupIntervalMs: 60000
+
   limits:
     user:
-      capacity: 100
-      refillRate: 100
-      windowSeconds: 60
+      minute:
+        capacity: 5
+        refillRate: 0
 
     ip:
-      capacity: 200
-      refillRate: 200
-      windowSeconds: 60
+      minute:
+        capacity: 5
+        refillRate: 0
 
     apiKey:
-      capacity: 500
-      refillRate: 500
-      windowSeconds: 60
+      minute:
+        capacity: 5
+        refillRate: 0
+  # ---------- REAL CONFIG (commented for demo) ----------
+
+  # limits:
+  #   user:
+  #     second: { capacity: 10, refillRate: 10 }
+  #     minute: { capacity: 100, refillRate: 100 }
+  #     hour:   { capacity: 1000, refillRate: 1000 }
+
+  #   ip:
+  #     second: { capacity: 20, refillRate: 20 }
+  #     minute: { capacity: 200, refillRate: 200 }
+  #     hour:   { capacity: 2000, refillRate: 2000 }
+
+  #   apiKey:
+  #     second: { capacity: 50, refillRate: 50 }
+  #     minute: { capacity: 500, refillRate: 500 }
+  #     hour:   { capacity: 5000, refillRate: 5000 }
+spring:
+  data:
+    redis:
+      host: localhost
+      port: 6379

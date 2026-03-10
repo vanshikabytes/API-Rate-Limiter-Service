@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableScheduling
 public class ApiRateLimiterServiceApplication {
-
+	// main class
 	public static void main(String[] args) {
 		SpringApplication.run(ApiRateLimiterServiceApplication.class, args);
 	}

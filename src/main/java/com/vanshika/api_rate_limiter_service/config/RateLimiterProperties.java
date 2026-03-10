@@ -8,13 +8,31 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "rate-limiter")
 public class RateLimiterProperties {
 
-  private Map<String, LimitConfig> limits;
+  private long cleanupTtlSeconds = 300;
+  private long cleanupIntervalMs = 60000;
+  private Map<String, Map<String, LimitConfig>> limits;
 
-  public Map<String, LimitConfig> getLimits() {
+  public long getCleanupTtlSeconds() {
+    return cleanupTtlSeconds;
+  }
+
+  public void setCleanupTtlSeconds(long cleanupTtlSeconds) {
+    this.cleanupTtlSeconds = cleanupTtlSeconds;
+  }
+
+  public long getCleanupIntervalMs() {
+    return cleanupIntervalMs;
+  }
+
+  public void setCleanupIntervalMs(long cleanupIntervalMs) {
+    this.cleanupIntervalMs = cleanupIntervalMs;
+  }
+
+  public Map<String, Map<String, LimitConfig>> getLimits() {
     return limits;
   }
 
-  public void setLimits(Map<String, LimitConfig> limits) {
+  public void setLimits(Map<String, Map<String, LimitConfig>> limits) {
     this.limits = limits;
   }
 
@@ -22,7 +40,6 @@ public class RateLimiterProperties {
 
     private long capacity;
     private long refillRate;
-    private long windowSeconds;
 
     public long getCapacity() {
       return capacity;
@@ -38,14 +55,6 @@ public class RateLimiterProperties {
 
     public void setRefillRate(long refillRate) {
       this.refillRate = refillRate;
-    }
-
-    public long getWindowSeconds() {
-      return windowSeconds;
-    }
-
-    public void setWindowSeconds(long windowSeconds) {
-      this.windowSeconds = windowSeconds;
     }
   }
 }

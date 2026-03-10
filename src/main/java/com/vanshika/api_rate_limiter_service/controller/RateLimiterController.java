@@ -1,8 +1,9 @@
 package com.vanshika.api_rate_limiter_service.controller;
 
-import com.vanshika.api_rate_limiter_service.config.RateLimiterProperties;
 import com.vanshika.api_rate_limiter_service.model.ApiResponse;
 import com.vanshika.api_rate_limiter_service.model.RateLimitResponse;
+import com.vanshika.api_rate_limiter_service.model.TimeWindow;
+import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 import com.vanshika.api_rate_limiter_service.service.RateLimiterService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -12,24 +13,30 @@ import org.springframework.web.bind.annotation.*;
 public class RateLimiterController {
 
   private final RateLimiterService rateLimiterService;
-  private final RateLimiterProperties properties;
 
-  public RateLimiterController(RateLimiterService rateLimiterService,
-      RateLimiterProperties properties) {
+  public RateLimiterController(RateLimiterService rateLimiterService) {
     this.rateLimiterService = rateLimiterService;
-    this.properties = properties;
   }
 
   @GetMapping("/{key}")
   public ResponseEntity<ApiResponse<RateLimitResponse>> checkRateLimit(
       @PathVariable String key) {
+    return checkRateLimitWithWindow(key, "minute");
+  }
 
-    boolean allowed = rateLimiterService.isAllowed(key);
-    long remaining = rateLimiterService.getRemainingTokens(key);
-    long resetTime = System.currentTimeMillis() + 60000;
+  @GetMapping("/{window}/{key}")
+  public ResponseEntity<ApiResponse<RateLimitResponse>> checkRateLimitWithWindow(
+      @PathVariable String key,
+      @PathVariable String window) {
 
-    String type = key.contains(":") ? key.split(":")[0] : "user";
-    long capacity = properties.getLimits().getOrDefault(type, properties.getLimits().get("user")).getCapacity();
+    TimeWindow timeWindow = TimeWindow.fromString(window);
+    boolean allowed = rateLimiterService.isAllowed(key, timeWindow);
+    TokenBucket bucket = rateLimiterService.getBucket(key, timeWindow);
+
+    long remaining = bucket.getRemainingTokens();
+    long capacity = bucket.getCapacity();
+    long resetTime = bucket.getResetTimeSeconds();
+    long retryAfter = bucket.getRetryAfterSeconds();
 
     RateLimitResponse response = new RateLimitResponse(key, remaining);
 
@@ -38,6 +45,7 @@ public class RateLimiterController {
           .header("X-RateLimit-Remaining", String.valueOf(remaining))
           .header("X-RateLimit-Capacity", String.valueOf(capacity))
           .header("X-RateLimit-Reset", String.valueOf(resetTime))
+          .header("Retry-After", String.valueOf(retryAfter))
           .body(new ApiResponse<>(
               false,
               "Rate limit exceeded",
@@ -63,7 +71,7 @@ public class RateLimiterController {
     return ResponseEntity.ok(
         new ApiResponse<>(
             true,
-            "Rate limit reset successfully",
+            "Rate limit reset successfully for all windows",
             null));
   }
 
