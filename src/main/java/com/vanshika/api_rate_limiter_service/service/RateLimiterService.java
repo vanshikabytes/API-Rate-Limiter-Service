@@ -3,21 +3,31 @@ package com.vanshika.api_rate_limiter_service.service;
 import com.vanshika.api_rate_limiter_service.config.RateLimiterProperties;
 import com.vanshika.api_rate_limiter_service.model.TimeWindow;
 import com.vanshika.api_rate_limiter_service.model.TokenBucket;
+import com.vanshika.api_rate_limiter_service.model.RateRule;
 import com.vanshika.api_rate_limiter_service.repository.InMemoryBucketRepository;
+import com.vanshika.api_rate_limiter_service.repository.RedisBucketRepository;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 public class RateLimiterService {
 
     private final InMemoryBucketRepository repository;
+    private final RedisBucketRepository redisRepository;
+    private final RuleEngineService ruleEngine;
     private final RateLimiterProperties properties;
 
     public RateLimiterService(InMemoryBucketRepository repository,
+            RedisBucketRepository redisRepository,
+            RuleEngineService ruleEngine,
             RateLimiterProperties properties) {
         this.repository = repository;
+        this.redisRepository = redisRepository;
+        this.ruleEngine = ruleEngine;
         this.properties = properties;
     }
 
@@ -25,15 +35,46 @@ public class RateLimiterService {
         return isAllowed(key, TimeWindow.MINUTE);
     }
 
+    public boolean isAllowed(String path, String method, String identifier) {
+        Optional<RateRule> rule = ruleEngine.match(path, method);
+        if (rule.isPresent()) {
+            RateRule r = rule.get();
+            String bucketKey = "rule:" + r.getName() + ":" + identifier;
+            List<Long> result = redisRepository.tryConsume(
+                    bucketKey,
+                    r.getCapacity(),
+                    r.getRefillRate(),
+                    r.getWindow().getSeconds(),
+                    1);
+            return result != null && result.get(0) == 1;
+        }
+
+        // Fallback to default user minute limit
+        return isAllowed("user:" + identifier, TimeWindow.MINUTE);
+    }
+
     public boolean isAllowed(String key, TimeWindow window) {
         RateLimiterProperties.LimitConfig config = resolveConfig(key, window);
+        
+        // ===== PHASE 1 (In-Memory) =====
+        /*
         TokenBucket bucket = repository.getBucket(
                 generateBucketKey(key, window),
                 config.getCapacity(),
                 config.getRefillRate(),
                 window.getSeconds());
-
         return bucket.tryConsume();
+        */
+
+        // ===== PHASE 2 (Redis) =====
+        List<Long> result = redisRepository.tryConsume(
+                generateBucketKey(key, window),
+                config.getCapacity(),
+                config.getRefillRate(),
+                window.getSeconds(),
+                1);
+        
+        return result != null && result.get(0) == 1;
     }
 
     public long getRemainingTokens(String key) {
@@ -42,13 +83,26 @@ public class RateLimiterService {
 
     public long getRemainingTokens(String key, TimeWindow window) {
         RateLimiterProperties.LimitConfig config = resolveConfig(key, window);
+        
+        // ===== PHASE 1 (In-Memory) =====
+        /*
         TokenBucket bucket = repository.getBucket(
                 generateBucketKey(key, window),
                 config.getCapacity(),
                 config.getRefillRate(),
                 window.getSeconds());
-
         return bucket.getRemainingTokens();
+        */
+
+        // ===== PHASE 2 (Redis) =====
+        List<Long> result = redisRepository.tryConsume(
+                generateBucketKey(key, window),
+                config.getCapacity(),
+                config.getRefillRate(),
+                window.getSeconds(),
+                0); // 0 means just checking
+        
+        return result != null ? result.get(1) : 0;
     }
 
     public TokenBucket getBucket(String key, TimeWindow window) {
@@ -89,6 +143,7 @@ public class RateLimiterService {
         // Reset all possible windows for the key
         for (TimeWindow window : TimeWindow.values()) {
             repository.removeBucket(generateBucketKey(key, window));
+            redisRepository.removeBucket(generateBucketKey(key, window));
         }
     }
 }
