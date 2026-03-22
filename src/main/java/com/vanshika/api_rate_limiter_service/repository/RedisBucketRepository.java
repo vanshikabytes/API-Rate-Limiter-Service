@@ -14,6 +14,7 @@ import java.util.List;
 public class RedisBucketRepository {
 
     private final RedisTemplate<String, Object> redisTemplate;
+    @SuppressWarnings("rawtypes")
     private final DefaultRedisScript<List> script;
 
     public RedisBucketRepository(RedisTemplate<String, Object> redisTemplate) {
@@ -31,8 +32,9 @@ public class RedisBucketRepository {
      * @param refillRate    Tokens refilled per window
      * @param windowSeconds Duration of the window in seconds
      * @param requested     Tokens requested
-     * @return List containing [isAllowed (1 or 0), remainingTokens]
+     * @return List containing [isAllowed (1 or 0), remainingTokens, retryAfter]
      */
+    @SuppressWarnings("unchecked")
     public List<Long> tryConsume(String key, long capacity, long refillRate, long windowSeconds, int requested) {
         return (List<Long>) redisTemplate.execute(
                 script,
