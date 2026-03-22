@@ -1,6 +1,9 @@
 package com.vanshika.api_rate_limiter_service.config;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import com.vanshika.api_rate_limiter_service.model.RateRule;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -11,6 +14,15 @@ public class RateLimiterProperties {
   private long cleanupTtlSeconds = 300;
   private long cleanupIntervalMs = 60000;
   private Map<String, Map<String, LimitConfig>> limits;
+  private List<RateRule> rules = new ArrayList<>();
+
+  public List<RateRule> getRules() {
+    return rules;
+  }
+
+  public void setRules(List<RateRule> rules) {
+    this.rules = rules;
+  }
 
   public long getCleanupTtlSeconds() {
     return cleanupTtlSeconds;

@@ -18,6 +18,24 @@ public class RateLimiterController {
     this.rateLimiterService = rateLimiterService;
   }
 
+  @GetMapping("/check")
+  public ResponseEntity<ApiResponse<RateLimitResponse>> checkAdvancedRateLimit(
+      @RequestParam String path,
+      @RequestParam String method,
+      @RequestParam String identifier) {
+
+    boolean allowed = rateLimiterService.isAllowed(path, method, identifier);
+    RateLimitResponse response = new RateLimitResponse(identifier, 0); // Remaining tokens estimation can be added if needed
+
+    if (!allowed) {
+      return ResponseEntity.status(429)
+          .body(new ApiResponse<>(false, "Rate limit exceeded for path: " + path, response));
+    }
+
+    return ResponseEntity.ok(
+        new ApiResponse<>(true, "Request allowed for path: " + path, response));
+  }
+
   @GetMapping("/{key}")
   public ResponseEntity<ApiResponse<RateLimitResponse>> checkRateLimit(
       @PathVariable String key) {
