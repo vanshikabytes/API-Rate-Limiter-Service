@@ -32,12 +32,17 @@ else
 end
 
 local allowed = 0
+local retryAfter = 0
 if tokens >= requested then
     tokens = tokens - requested
     allowed = 1
+else
+    -- Calculate how many seconds until we have enough tokens
+    local tokensNeeded = requested - tokens
+    retryAfter = math.ceil(tokensNeeded / refillRatePerSecond)
 end
 
 redis.call('HMSET', key, 'tokens', tokens, 'lastRefillTime', lastRefillTime)
 redis.call('EXPIRE', key, math.floor(windowSeconds * 2))
 
-return {allowed, math.floor(tokens)}
+return {allowed, math.floor(tokens), retryAfter}

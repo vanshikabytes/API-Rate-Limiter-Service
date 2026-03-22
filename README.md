@@ -1,38 +1,83 @@
-# API Rate Limiter Service
+# API Rate Limiter Service (Phase 2)
 
-A production-ready API Rate Limiter Service built with Spring Boot, implementing the Token Bucket algorithm with multi-window support.
+A distributed, production-ready API Rate Limiter Service built with Spring Boot, Redis, and Lua scripting.
 
-## 🚀 Key Features (Phase 2)
-- **Multi-Window Support**: Separate limits for `SECOND`, `MINUTE`, and `HOUR` windows.
-- **Per-Identifier Configuration**: Specific limits for `user`, `ip`, and `apiKey`.
-- **Precise Headers**:
-  - `X-RateLimit-Remaining`: Tokens currently available in the bucket.
-  - `X-RateLimit-Capacity`: Maximum capacity of the bucket.
-  - `X-RateLimit-Reset`: Unix epoch second when the bucket will be fully refilled.
-  - `Retry-After`: (On 429) Seconds to wait for the next token.
-- **Clean Architecture**: Decoupled Controller, Service, and Repository layers.
-- **Configurable Cleanup**: Automatic removal of inactive buckets with configurable TTL and interval.
+## 🚀 Key Features
 
-## 🛠️ API Endpoints
-- `GET /api/rate-limit/{key}`: Check rate limit (defaults to Minute window).
-- `GET /api/rate-limit/{window}/{key}`: Check rate limit for a specific window (`second`, `minute`, `hour`).
-- `DELETE /api/rate-limit/{key}`: Reset rate limit for all windows associated with the key.
-- `GET /api/rate-limit/status`: Check service health.
+- **Distributed Rate Limiting**: Uses Redis as a centralized token store, allowing multiple service instances to share the same rate limits.
+- **Advanced Rules Engine**: Path-based matching using Ant-style patterns (e.g., `/api/search/**`). Supports method-specific limits and rule priorities.
+- **Atomic Operations**: Core logic implemented in Lua scripts to ensure absolute thread-safety and zero race conditions in Redis.
+- **High-Availability Fallback**: Automatically falls back to a local In-Memory rate limiter if the Redis server goes offline, ensuring 100% uptime.
+- **Professional Metadata**: Returns standard HTTP headers (`X-RateLimit-Remaining`, `Retry-After`) and detailed JSON responses.
 
-## ⚙️ Configuration
-Example `application.yaml`:
+---
+
+## 🛠️ Prerequisites
+
+- **Java 17** or higher
+- **Maven 3.x**
+- **Redis Server** or **Docker** (For local development)
+
+---
+
+## 🏃 Getting Started
+
+### 1. Start Redis
+If you have Docker:
+```bash
+docker run -p 6379:6379 redis
+```
+Or run `redis-server.exe` if installed locally.
+
+### 2. Configure Rules
+Edit `src/main/resources/application.yaml` to define your custom rate limiting rules:
 ```yaml
 rate-limiter:
-  cleanupTtlSeconds: 300
-  cleanupIntervalMs: 60000
-  limits:
-    user:
-      second: { capacity: 10, refillRate: 10 }
-      minute: { capacity: 100, refillRate: 100 }
-      hour:   { capacity: 1000, refillRate: 1000 }
+  rules:
+    - name: "search-api"
+      path: "/api/search/**"
+      method: "GET"
+      capacity: 10
+      refillRate: 10
+      window: "MINUTE"
+      priority: 100
 ```
 
-## 🧪 Running Tests
+### 3. Run the Application
 ```bash
-./mvnw test
+./mvnw spring-boot:run
 ```
+
+---
+
+## 📡 API Endpoints
+
+### 🟢 Global Limit Check
+`GET /api/rate-limit/{identifier}`
+- Tracks simple limits (Defaults: 5/min).
+- Headers: `X-RateLimit-Remaining`, `X-RateLimit-Capacity`.
+
+### 🔵 Advanced Rule Check
+`GET /api/rate-limit/check?path=/api/search/items&method=GET&identifier=user_123`
+- Matches against the Rules Engine.
+- Returns detailed wait times if blocked.
+
+### 🔴 Reset Limit
+`DELETE /api/rate-limit/{identifier}`
+- Clears all buckets associated with the identifier in both Redis and Memory.
+
+---
+
+## 📂 Architecture (Day-wise)
+
+- **Day 1**: Redis & Infrastructure setup.
+- **Day 2**: Distributed Token Bucket logic (Lua + Redis).
+- **Day 3**: Advanced Rules Engine foundational matching.
+- **Day 4**: Reliability & Fallback logic (Graceful Degradation).
+- **Day 5**: Response Polishing & Professional Documentation.
+
+---
+
+## 👨‍💻 Author
+**Vanshika**
+Developed as part of the Technical Assessment.

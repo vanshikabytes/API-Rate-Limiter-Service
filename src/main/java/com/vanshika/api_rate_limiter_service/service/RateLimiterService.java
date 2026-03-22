@@ -4,6 +4,7 @@ import com.vanshika.api_rate_limiter_service.config.RateLimiterProperties;
 import com.vanshika.api_rate_limiter_service.model.TimeWindow;
 import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 import com.vanshika.api_rate_limiter_service.model.RateRule;
+import com.vanshika.api_rate_limiter_service.model.RateLimitResponse;
 import com.vanshika.api_rate_limiter_service.repository.InMemoryBucketRepository;
 import com.vanshika.api_rate_limiter_service.repository.RedisBucketRepository;
 import org.slf4j.Logger;
@@ -38,7 +39,7 @@ public class RateLimiterService {
         return isAllowed(key, TimeWindow.MINUTE);
     }
 
-    public boolean isAllowed(String path, String method, String identifier) {
+    public RateLimitResponse isAllowed(String path, String method, String identifier) {
         Optional<RateRule> rule = ruleEngine.match(path, method);
         if (rule.isPresent()) {
             RateRule r = rule.get();
@@ -50,7 +51,13 @@ public class RateLimiterService {
                         r.getRefillRate(),
                         r.getWindow().getSeconds(),
                         1);
-                return result != null && result.get(0) == 1;
+                
+                boolean allowed = result != null && result.get(0) == 1;
+                long remaining = result != null ? result.get(1) : 0;
+                long retryAfter = result != null ? result.get(2) : 0;
+
+                return new RateLimitResponse(bucketKey, remaining, r.getCapacity(), allowed ? 0 : retryAfter);
+
             } catch (Exception e) {
                 logger.warn("Redis is unavailable for Rule {}, falling back to In-Memory", r.getName(), e);
                 TokenBucket backupBucket = repository.getBucket(
@@ -58,12 +65,38 @@ public class RateLimiterService {
                         r.getCapacity(),
                         r.getRefillRate(),
                         r.getWindow().getSeconds());
-                return backupBucket.tryConsume();
+                
+                boolean allowed = backupBucket.tryConsume();
+                return new RateLimitResponse(bucketKey, backupBucket.getRemainingTokens(), r.getCapacity(), allowed ? 0 : backupBucket.getRetryAfterSeconds());
             }
         }
 
-        // Fallback to default user minute limit
-        return isAllowed("user:" + identifier, TimeWindow.MINUTE);
+        // Fallback to default user minute limit if no specific rule matches
+        String key = "user:" + identifier;
+        RateLimiterProperties.LimitConfig config = resolveConfig(key, TimeWindow.MINUTE);
+        
+        try {
+            List<Long> result = redisRepository.tryConsume(
+                generateBucketKey(key, TimeWindow.MINUTE),
+                config.getCapacity(),
+                config.getRefillRate(),
+                TimeWindow.MINUTE.getSeconds(),
+                1);
+            
+            boolean allowed = result != null && result.get(0) == 1;
+            long remaining = result != null ? result.get(1) : 0;
+            long retryAfter = result != null ? result.get(2) : 0;
+
+            return new RateLimitResponse(key, remaining, config.getCapacity(), allowed ? 0 : retryAfter);
+        } catch (Exception e) {
+            TokenBucket bucket = repository.getBucket(
+                generateBucketKey(key, TimeWindow.MINUTE),
+                config.getCapacity(),
+                config.getRefillRate(),
+                TimeWindow.MINUTE.getSeconds());
+            boolean allowed = bucket.tryConsume();
+            return new RateLimitResponse(key, bucket.getRemainingTokens(), config.getCapacity(), allowed ? 0 : bucket.getRetryAfterSeconds());
+        }
     }
 
     public boolean isAllowed(String key, TimeWindow window) {

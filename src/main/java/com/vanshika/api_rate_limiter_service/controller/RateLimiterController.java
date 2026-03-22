@@ -24,16 +24,21 @@ public class RateLimiterController {
       @RequestParam String method,
       @RequestParam String identifier) {
 
-    boolean allowed = rateLimiterService.isAllowed(path, method, identifier);
-    RateLimitResponse response = new RateLimitResponse(identifier, 0); // Remaining tokens estimation can be added if needed
+    RateLimitResponse response = rateLimiterService.isAllowed(path, method, identifier);
+    boolean allowed = response.getRetryAfterSeconds() == 0;
 
     if (!allowed) {
       return ResponseEntity.status(429)
+          .header("X-RateLimit-Remaining", String.valueOf(response.getRemainingTokens()))
+          .header("X-RateLimit-Capacity", String.valueOf(response.getCapacity()))
+          .header("Retry-After", String.valueOf(response.getRetryAfterSeconds()))
           .body(new ApiResponse<>(false, "Rate limit exceeded for path: " + path, response));
     }
 
-    return ResponseEntity.ok(
-        new ApiResponse<>(true, "Request allowed for path: " + path, response));
+    return ResponseEntity.ok()
+        .header("X-RateLimit-Remaining", String.valueOf(response.getRemainingTokens()))
+        .header("X-RateLimit-Capacity", String.valueOf(response.getCapacity()))
+        .body(new ApiResponse<>(true, "Request allowed for path: " + path, response));
   }
 
   @GetMapping("/{key}")
@@ -53,16 +58,14 @@ public class RateLimiterController {
 
     long remaining = bucket.getRemainingTokens();
     long capacity = bucket.getCapacity();
-    long resetTime = bucket.getResetTimeSeconds();
-    long retryAfter = bucket.getRetryAfterSeconds();
+    long retryAfter = allowed ? 0 : bucket.getRetryAfterSeconds();
 
-    RateLimitResponse response = new RateLimitResponse(key, remaining);
+    RateLimitResponse response = new RateLimitResponse(key, remaining, capacity, retryAfter);
 
     if (!allowed) {
       return ResponseEntity.status(429)
           .header("X-RateLimit-Remaining", String.valueOf(remaining))
           .header("X-RateLimit-Capacity", String.valueOf(capacity))
-          .header("X-RateLimit-Reset", String.valueOf(resetTime))
           .header("Retry-After", String.valueOf(retryAfter))
           .body(new ApiResponse<>(
               false,
@@ -73,7 +76,6 @@ public class RateLimiterController {
     return ResponseEntity.ok()
         .header("X-RateLimit-Remaining", String.valueOf(remaining))
         .header("X-RateLimit-Capacity", String.valueOf(capacity))
-        .header("X-RateLimit-Reset", String.valueOf(resetTime))
         .body(new ApiResponse<>(
             true,
             "Request allowed",
