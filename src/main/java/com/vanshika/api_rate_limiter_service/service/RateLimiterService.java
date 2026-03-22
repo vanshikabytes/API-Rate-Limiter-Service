@@ -6,6 +6,8 @@ import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 import com.vanshika.api_rate_limiter_service.model.RateRule;
 import com.vanshika.api_rate_limiter_service.repository.InMemoryBucketRepository;
 import com.vanshika.api_rate_limiter_service.repository.RedisBucketRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +18,7 @@ import java.util.Optional;
 @Service
 public class RateLimiterService {
 
+    private static final Logger logger = LoggerFactory.getLogger(RateLimiterService.class);
     private final InMemoryBucketRepository repository;
     private final RedisBucketRepository redisRepository;
     private final RuleEngineService ruleEngine;
@@ -40,13 +43,23 @@ public class RateLimiterService {
         if (rule.isPresent()) {
             RateRule r = rule.get();
             String bucketKey = "rule:" + r.getName() + ":" + identifier;
-            List<Long> result = redisRepository.tryConsume(
-                    bucketKey,
-                    r.getCapacity(),
-                    r.getRefillRate(),
-                    r.getWindow().getSeconds(),
-                    1);
-            return result != null && result.get(0) == 1;
+            try {
+                List<Long> result = redisRepository.tryConsume(
+                        bucketKey,
+                        r.getCapacity(),
+                        r.getRefillRate(),
+                        r.getWindow().getSeconds(),
+                        1);
+                return result != null && result.get(0) == 1;
+            } catch (Exception e) {
+                logger.warn("Redis is unavailable for Rule {}, falling back to In-Memory", r.getName(), e);
+                TokenBucket backupBucket = repository.getBucket(
+                        bucketKey,
+                        r.getCapacity(),
+                        r.getRefillRate(),
+                        r.getWindow().getSeconds());
+                return backupBucket.tryConsume();
+            }
         }
 
         // Fallback to default user minute limit
@@ -56,25 +69,26 @@ public class RateLimiterService {
     public boolean isAllowed(String key, TimeWindow window) {
         RateLimiterProperties.LimitConfig config = resolveConfig(key, window);
         
-        // ===== PHASE 1 (In-Memory) =====
-        /*
-        TokenBucket bucket = repository.getBucket(
-                generateBucketKey(key, window),
-                config.getCapacity(),
-                config.getRefillRate(),
-                window.getSeconds());
-        return bucket.tryConsume();
-        */
-
-        // ===== PHASE 2 (Redis) =====
-        List<Long> result = redisRepository.tryConsume(
-                generateBucketKey(key, window),
-                config.getCapacity(),
-                config.getRefillRate(),
-                window.getSeconds(),
-                1);
-        
-        return result != null && result.get(0) == 1;
+        try {
+            // ===== PHASE 2 (Redis) =====
+            List<Long> result = redisRepository.tryConsume(
+                    generateBucketKey(key, window),
+                    config.getCapacity(),
+                    config.getRefillRate(),
+                    window.getSeconds(),
+                    1);
+            
+            return result != null && result.get(0) == 1;
+        } catch (Exception e) {
+            logger.warn("Redis is unavailable for key {}, falling back to Phase 1 (In-Memory)", key, e);
+            // ===== PHASE 1 (In-Memory) Fallback =====
+            TokenBucket bucket = repository.getBucket(
+                    generateBucketKey(key, window),
+                    config.getCapacity(),
+                    config.getRefillRate(),
+                    window.getSeconds());
+            return bucket.tryConsume();
+        }
     }
 
     public long getRemainingTokens(String key) {
@@ -84,25 +98,26 @@ public class RateLimiterService {
     public long getRemainingTokens(String key, TimeWindow window) {
         RateLimiterProperties.LimitConfig config = resolveConfig(key, window);
         
-        // ===== PHASE 1 (In-Memory) =====
-        /*
-        TokenBucket bucket = repository.getBucket(
-                generateBucketKey(key, window),
-                config.getCapacity(),
-                config.getRefillRate(),
-                window.getSeconds());
-        return bucket.getRemainingTokens();
-        */
-
-        // ===== PHASE 2 (Redis) =====
-        List<Long> result = redisRepository.tryConsume(
-                generateBucketKey(key, window),
-                config.getCapacity(),
-                config.getRefillRate(),
-                window.getSeconds(),
-                0); // 0 means just checking
-        
-        return result != null ? result.get(1) : 0;
+        try {
+            // ===== PHASE 2 (Redis) =====
+            List<Long> result = redisRepository.tryConsume(
+                    generateBucketKey(key, window),
+                    config.getCapacity(),
+                    config.getRefillRate(),
+                    window.getSeconds(),
+                    0); // 0 means just checking
+            
+            return result != null ? result.get(1) : 0;
+        } catch (Exception e) {
+            logger.warn("Redis is unavailable for key {}, falling back to Phase 1 (In-Memory)", key, e);
+            // ===== PHASE 1 (In-Memory) Fallback =====
+            TokenBucket bucket = repository.getBucket(
+                    generateBucketKey(key, window),
+                    config.getCapacity(),
+                    config.getRefillRate(),
+                    window.getSeconds());
+            return bucket.getRemainingTokens();
+        }
     }
 
     public TokenBucket getBucket(String key, TimeWindow window) {
