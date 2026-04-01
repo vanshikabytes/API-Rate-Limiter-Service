@@ -15,7 +15,7 @@ public class TokenBucket {
         this.capacity = capacity;
         this.refillRatePerSecond = refillRatePerSecond;
         this.tokens = new AtomicLong(capacity);
-        this.lastRefillTime = Instant.now();
+        this.lastRefillTime = Instant.now(); // for new user
     }
 
     public synchronized boolean tryConsume() {

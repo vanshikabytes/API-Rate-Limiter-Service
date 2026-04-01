@@ -37,9 +37,20 @@ public class RateLimiterService {
         return bucket.getRemainingTokens();
     }
 
+    public TokenBucket getBucket(String key) {
+        // Step 2: Fix Token Inconsistency Bug
+        // Fetching config once and then returning the bucket.
+        // This ensures the controller works on the SAME TokenBucket instance.
+        RateLimiterProperties.LimitConfig config = resolveConfig(key);
+        return repository.getBucket(
+                key,
+                config.getCapacity(),
+                config.getRefillRate());
+    }
+
     private RateLimiterProperties.LimitConfig resolveConfig(String key) {
-        String type = key.contains(":") ? key.split(":")[0] : "user";
-        RateLimiterProperties.LimitConfig config = properties.getLimits().get(type);
+        String type = key.contains(":") ? key.split(":")[0] : "user";// Extract type of key
+        RateLimiterProperties.LimitConfig config = properties.getLimits().get(type);// fetches corresponding limits.
 
         if (config == null) {
             // Default to 'user' limits if type not found
