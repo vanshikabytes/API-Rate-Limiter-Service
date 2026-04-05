@@ -3,42 +3,45 @@ package com.vanshika.api_rate_limiter_service.repository;
 import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Repository;
+
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * IN-MEMORY REPOSITORY
+ *
+ * Implements BucketRepository (DIP - SOLID).
  * 
- * Uses ConcurrentHashMap for thread-safe storage of token buckets.
- * This is Phase-1 implementation (No Redis).
+ * Why ConcurrentHashMap? 
+ * It is thread-safe and allows multiple threads to access buckets simultaneously without full locking.
  */
-@Repository 
-public class InMemoryBucketRepository {
+@Repository
+public class InMemoryBucketRepository implements BucketRepository {
 
     // Thread-safe map to store buckets by key
     private final ConcurrentHashMap<String, TokenBucket> bucketStore = new ConcurrentHashMap<>();
 
-    /**
-     * Fetches an existing bucket or creates a new one if it doesn't exist.
-     * computeIfAbsent is atomic, ensuring thread-safety.
-     */
+    @Override
     public TokenBucket getBucket(String key,
                                  long capacity,
                                  long refillRatePerSecond) {
 
+        /**
+         * Why computeIfAbsent?
+         * It ensures ATOMIC creation. If two threads try to create a bucket for the same key
+         * at the same time, only one will succeed, preventing overwriting and token loss.
+         */
         return bucketStore.computeIfAbsent(
                 key,
                 k -> new TokenBucket(capacity, refillRatePerSecond));
     }
 
-    /**
-     * Removes a bucket from storage (used for Reset API).
-     */
+    @Override
     public void removeBucket(String key) {
         bucketStore.remove(key);
     }
 
     /**
-     * Scheduled cleanup task to remove expired buckets from memory every 60s.
+     * Scheduled cleanup task to remove expired buckets every 60s.
      * Prevents memory leaks by clearing out inactive users.
      */
     @Scheduled(fixedRate = 60000)

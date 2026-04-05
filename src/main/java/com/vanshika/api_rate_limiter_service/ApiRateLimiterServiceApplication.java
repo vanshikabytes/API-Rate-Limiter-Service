@@ -11,5 +11,4 @@ public class ApiRateLimiterServiceApplication {
 	public static void main(String[] args) {
 		SpringApplication.run(ApiRateLimiterServiceApplication.class, args);
 	}
-
 }

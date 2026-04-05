@@ -1,89 +1,213 @@
 {
-  "info": {
-    "_postman_id": "c51592ba-a19a-4609-b688-8537b248d4e6",
-    "name": "API Rate Limiter Service",
-    "description": "### Welcome to Postman! This is your first collection. \n\nCollections are your starting point for building and testing APIs. You can use this one to:\n\n• Group related requests\n• Test your API in real-world scenarios\n• Document and share your requests\n\nUpdate the name and overview whenever you’re ready to make it yours.\n\n[Learn more about Postman Collections.](https://learning.postman.com/docs/collections/collections-overview/)",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "52806691",
-    "_collection_link": "https://go.postman.co/collection/52806691-c51592ba-a19a-4609-b688-8537b248d4e6?source=collection_link"
-  },
-  "item": [
-    {
-      "name": "Check Rate Limit",
-      "event": [
-        {
-          "listen": "test",
-          "script": {
-            "type": "text/javascript",
-            "exec": [
-              "pm.test(\"Status code is 200\", function () {",
-              "    pm.response.to.have.status(200);",
-              "});"
-            ]
-          }
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "http://localhost:8080/api/rate-limit/user1",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "rate-limit",
-            "user1"
-          ]
-        },
-        "description": "Examine the rate limit for a specific key (e.g., user:user1, ip:127.0.0.1)."
-      },
-      "response": []
-    },
-    {
-      "name": "Reset Rate Limit",
-      "request": {
-        "method": "DELETE",
-        "header": [],
-        "url": {
-          "raw": "http://localhost:8080/api/rate-limit/user1",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "rate-limit",
-            "user1"
-          ]
-        }
-      },
-      "response": []
-    },
-    {
-      "name": "Service Status",
-      "request": {
-        "method": "GET",
-        "header": [],
-        "url": {
-          "raw": "http://localhost:8080/api/rate-limit/status",
-          "protocol": "http",
-          "host": [
-            "localhost"
-          ],
-          "port": "8080",
-          "path": [
-            "api",
-            "rate-limit",
-            "status"
-          ]
-        }
-      },
-      "response": []
-    }
-  ]
+	"info": {
+		"_postman_id": "c51592ba-a19a-4609-b688-8537b248d4e6",
+		"name": "API Rate Limiter Service",
+		"description": "### API Rate Limiter Service\n\nThis collection provides requests for testing the API Rate Limiter Service and the protected Backend APIs.\n\n#### Features:\n- **Token Bucket Algorithm**: Standard algorithm for controlling rate in networking.\n- **Middleware (HandlerInterceptor)**: Enforces limits before requests reach controllers.\n- **Dynamic Rules**: Different limits for Users (X-User-Id), IP addresses, and generic requests.\n\n#### Required Headers for Backend APIs:\n- `X-User-Id`: Identifier for the client (e.g., `user-123`). If missing, fallback to IP-based limiting.\n\n#### Core Header Meanings:\n- `X-RateLimit-Remaining`: How many tokens are left for you in the current window.\n- `X-RateLimit-Capacity`: Total capacity of your bucket.\n- `X-RateLimit-Reset`: Seconds until the next token refill.\n- `Retry-After`: (Included on 429) Wait this many seconds before retrying.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "1. Backend APIs (Protected)",
+			"item": [
+				{
+					"name": "GET Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-User-Id",
+								"value": "1",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backend/data",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"backend",
+								"data"
+							]
+						},
+						"description": "Fetches general dashboard data. Protected by the Rate Limiter Middleware."
+					},
+					"response": []
+				},
+				{
+					"name": "GET User by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-User-Id",
+								"value": "1",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backend/users/42",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"backend",
+								"users",
+								"42"
+							]
+						},
+						"description": "Fetches a specific user profile. Protected by Rate Limiter.\n\nTry with ID '0' (e.g. `users/10`) to test the 404 handler."
+					},
+					"response": []
+				},
+				{
+					"name": "POST Process Request",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-User-Id",
+								"value": "1",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backend/process",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"backend",
+								"process"
+							]
+						},
+						"description": "Triggers a simulated background processing job (+50ms latency). Protected by Rate Limiter."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "2. Rate Limiter Admin APIs",
+			"item": [
+				{
+					"name": "Get Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/rate-limit/status/user:1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"rate-limit",
+								"status",
+								"user:1"
+							]
+						},
+						"description": "Returns the current state of a rate-limit bucket without consuming a token."
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Bucket",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/rate-limit/reset/user:1",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"rate-limit",
+								"reset",
+								"user:1"
+							]
+						},
+						"description": "Deletes the rate-limit bucket for a specific key, resetting it to full capacity."
+					},
+					"response": []
+				},
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/rate-limit/health",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"rate-limit",
+								"health"
+							]
+						},
+						"description": "Self-check to ensure the rate limiting infrastructure is healthy."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Actuator (Metrics)",
+			"item": [
+				{
+					"name": "Actuator Health",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/actuator/health",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"actuator",
+								"health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Actuator Metrics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/actuator/metrics",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"actuator",
+								"metrics"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		}
+	]
 }

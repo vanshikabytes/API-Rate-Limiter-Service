@@ -1,94 +1,134 @@
 package com.vanshika.api_rate_limiter_service.controller;
 
-import com.vanshika.api_rate_limiter_service.config.RateLimiterProperties;
 import com.vanshika.api_rate_limiter_service.model.ApiResponse;
-import com.vanshika.api_rate_limiter_service.service.BackendService;
+import com.vanshika.api_rate_limiter_service.model.RateLimitResponse;
+import com.vanshika.api_rate_limiter_service.model.RateLimitStatus;
 import com.vanshika.api_rate_limiter_service.service.RateLimiterService;
-import com.vanshika.api_rate_limiter_service.model.TokenBucket;
+import jakarta.validation.constraints.NotBlank;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * PRODUCTION-LIKE RATE LIMITER CONTROLLER (Phase-1 Optimized)
- * 
- * Flow: Client -> Rate Limiter (Middleware) -> Backend Service -> Response
- * 
- * Why Middleware?
- * 1. Security: Blocks DDoS or abusive traffic before it reaches your expensive backend.
- * 2. Performance: Backend only spends resources processing valid, authorized requests.
+ * RATE LIMITER CONTROLLER — Step 4 (Clean Version)
+ *
+ * ─────────────────────────────────────────────────────
+ * What changed from Step 3?
+ * ─────────────────────────────────────────────────────
+ * The old /{key} endpoint used to both CHECK and ENFORCE rate limiting.
+ * That was wrong — the controller was doing middleware work.
+ *
+ * Step 4 fix:
+ * - Rate limit ENFORCEMENT → moved to RateLimitInterceptor (middleware)
+ * - This controller now only exposes ADMIN/OBSERVABILITY endpoints:
+ *     GET  /api/rate-limit/status/{key}  → inspect a key's current state
+ *     POST /api/rate-limit/reset/{key}   → reset a key's bucket (admin)
+ *     GET  /api/rate-limit/health        → health check
+ *
+ * These endpoints themselves are NOT protected by the interceptor
+ * (which only covers /api/backend/**), because admin tools must
+ * remain accessible even when rate limits are hit.
+ * ─────────────────────────────────────────────────────
  */
 @RestController
 @RequestMapping("/api/rate-limit")
+@Validated
 public class RateLimiterController {
 
     private final RateLimiterService rateLimiterService;
-    private final RateLimiterProperties properties;
-    private final BackendService backendService; // Step 1: Simulated backend service
 
-    public RateLimiterController(RateLimiterService rateLimiterService,
-                                 RateLimiterProperties properties,
-                                 BackendService backendService) {
+    public RateLimiterController(RateLimiterService rateLimiterService) {
         this.rateLimiterService = rateLimiterService;
-        this.properties = properties;
-        this.backendService = backendService;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // STATUS endpoint — inspect without consuming a token
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
-     * Main Rate Limit check endpoint.
-     * Acts as a gateway. Only calls the backend if the rate limit is not exceeded.
+     * GET /api/rate-limit/status/{key}
+     *
+     * Returns the current token bucket state for a given key.
+     * Does NOT consume a token — safe to call for monitoring/debugging.
+     *
+     * Example keys: "user:42", "ip:127.0.0.1"
      */
-    @GetMapping("/{key}")
-    public ResponseEntity<ApiResponse<Object>> checkRateLimit(@PathVariable String key) {
-        
-        // Step 2: Fix Token Inconsistency Bug
-        // Using a single instance of TokenBucket fetched once from the service.
-        // This ensures tryConsume() and getRemainingTokens() work on the SAME object state.
-        TokenBucket bucket = rateLimiterService.getBucket(key);
+    @GetMapping("/status/{key}")
+    public ResponseEntity<ApiResponse<RateLimitResponse>> getStatus(
+            @PathVariable @NotBlank(message = "Key cannot be blank") String key) {
 
-        boolean allowed = bucket.tryConsume();
-        long remaining = bucket.getRemainingTokens();
-
-        // Resolve capacity for headers
-        String type = key.contains(":") ? key.split(":")[0] : "user";
-        long capacity = properties.getLimits()
-                .getOrDefault(type, properties.getLimits().get("user"))
-                .getCapacity();
-
-        // Step 4: Headers are important for the client to know when they will be blocked.
-        if (!allowed) {
-            return ResponseEntity.status(429)
-                    .header("X-RateLimit-Remaining", String.valueOf(remaining))
-                    .header("X-RateLimit-Capacity", String.valueOf(capacity))
-                    .body(new ApiResponse<>(false, "Rate limit exceeded. Please slow down.", null));
-        }
-
-        // Step 1: Call backend ONLY if allowed
-        // This simulates a real production flow where the middleware passes the request forward.
-        String backendResponse = backendService.processRequest();
-
-        return ResponseEntity.ok()
-                .header("X-RateLimit-Remaining", String.valueOf(remaining))
-                .header("X-RateLimit-Capacity", String.valueOf(capacity))
-                .body(new ApiResponse<>(true, backendResponse, null));
+        RateLimitStatus status = rateLimiterService.getCurrentStatus(key);
+        return buildResponse(status, "Current rate limit status retrieved successfully", HttpStatus.OK);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // RESET endpoint — admin operation to clear a key's bucket
+    // ─────────────────────────────────────────────────────────────────────────
+
     /**
-     * Step 3: Fix Reset API Design
-     * Correct REST Practice: DELETE is for removing resources. 
-     * Since we are "resetting" or "updating" the rate limit state, POST is more appropriate.
+     * POST /api/rate-limit/reset/{key}
+     *
+     * Removes the token bucket for the given key, effectively resetting
+     * that client's rate limit back to full capacity.
+     *
+     * Real-world use: Admin panel, support team unblocking a user,
+     * automated recovery after detecting false positives.
      */
     @PostMapping("/reset/{key}")
-    public ResponseEntity<ApiResponse<Object>> resetRateLimit(@PathVariable String key) {
+    public ResponseEntity<ApiResponse<RateLimitResponse>> resetRateLimit(
+            @PathVariable @NotBlank(message = "Key cannot be blank") String key) {
+
         rateLimiterService.reset(key);
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Rate limit reset successfully for: " + key, null)
-        );
+
+        // Fetch fresh state after reset to show the restored capacity
+        RateLimitStatus status = rateLimiterService.getCurrentStatus(key);
+        return buildResponse(status, "Rate limit reset successfully for key: " + key, HttpStatus.OK);
     }
 
-    @GetMapping("/status")
-    public ResponseEntity<ApiResponse<String>> status() {
-        return ResponseEntity.ok(
-                new ApiResponse<>(true, "Rate Limiter Service is running", "OK")
-        );
+    // ─────────────────────────────────────────────────────────────────────────
+    // HEALTH endpoint — always accessible, no rate limiting applied
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * GET /api/rate-limit/health
+     *
+     * Simple liveness check.
+     * In production this would be picked up by Kubernetes readiness probes,
+     * load balancers, or monitoring dashboards (Grafana, Datadog, etc.).
+     */
+    @GetMapping("/health")
+    public ResponseEntity<ApiResponse<String>> health() {
+        return ResponseEntity.ok(new ApiResponse<>(true, "Rate Limiter Service is healthy", "OK"));
     }
-}
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Private helper — standardizes all responses from this controller
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Builds a consistent ResponseEntity with rate limit headers and structured body.
+     * All endpoints in this controller funnel through here for uniformity.
+     */
+    private ResponseEntity<ApiResponse<RateLimitResponse>> buildResponse(
+            RateLimitStatus status, String message, HttpStatus httpStatus) {
+
+        RateLimitResponse data = new RateLimitResponse(
+                status.getKey(),
+                status.getRemainingTokens(),
+                status.getCapacity()
+        );
+
+        ResponseEntity.BodyBuilder builder = ResponseEntity.status(httpStatus)
+                .header("X-RateLimit-Remaining", String.valueOf(status.getRemainingTokens()))
+                .header("X-RateLimit-Capacity",  String.valueOf(status.getCapacity()))
+                .header("X-RateLimit-Reset",     String.valueOf(status.getResetSeconds()));
+
+        // Add Retry-After only when signalling a 429 (client should wait)
+        if (httpStatus == HttpStatus.TOO_MANY_REQUESTS) {
+            builder.header("Retry-After", String.valueOf(status.getResetSeconds()));
+        }
+
+        return builder.body(new ApiResponse<>(httpStatus.is2xxSuccessful(), message, data));
+    }
+}
