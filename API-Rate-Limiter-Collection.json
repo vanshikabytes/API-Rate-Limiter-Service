@@ -2,34 +2,24 @@
 	"info": {
 		"_postman_id": "c51592ba-a19a-4609-b688-8537b248d4e6",
 		"name": "API Rate Limiter Service",
-		"description": "### API Rate Limiter Service\n\nThis collection provides requests for testing the API Rate Limiter Service and the protected Backend APIs.\n\n#### Features:\n- **Token Bucket Algorithm**: Standard algorithm for controlling rate in networking.\n- **Middleware (HandlerInterceptor)**: Enforces limits before requests reach controllers.\n- **Dynamic Rules**: Different limits for Users (X-User-Id), IP addresses, and generic requests.\n\n#### Required Headers for Backend APIs:\n- `X-User-Id`: Identifier for the client (e.g., `user-123`). If missing, fallback to IP-based limiting.\n\n#### Core Header Meanings:\n- `X-RateLimit-Remaining`: How many tokens are left for you in the current window.\n- `X-RateLimit-Capacity`: Total capacity of your bucket.\n- `X-RateLimit-Reset`: Seconds until the next token refill.\n- `Retry-After`: (Included on 429) Wait this many seconds before retrying.",
+		"description": "### API Rate Limiter Service\n\nThis collection provides requests for testing the API Rate Limiter Service and the protected Backend APIs.\n\n#### Features:\n- **Token Bucket Algorithm**: Standard algorithm for controlling rate in networking.\n- **Middleware (HandlerInterceptor)**: Enforces limits before requests reach controllers.\n- **Real CRUD Backend**: Employee Management System with full create/read/update/delete operations.\n\n#### Required Headers for Backend APIs:\n- `X-User-Id`: Identifier for the client (e.g., `emp-tester`). If missing, fallback to IP-based limiting.\n\n#### Core Header Meanings:\n- `X-RateLimit-Remaining`: How many tokens are left for you in the current window.\n- `X-RateLimit-Capacity`: Total capacity of your bucket.\n- `X-RateLimit-Reset`: Seconds until the next token refill.\n- `Retry-After`: (Included on 429) Wait this many seconds before retrying.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
-			"name": "1. Backend APIs (Protected)",
+			"name": "1. Backend APIs (Protected - Legacy)",
 			"item": [
 				{
 					"name": "GET Data",
 					"request": {
 						"method": "GET",
 						"header": [
-							{
-								"key": "X-User-Id",
-								"value": "1",
-								"type": "text"
-							}
+							{ "key": "X-User-Id", "value": "1", "type": "text" }
 						],
 						"url": {
 							"raw": "{{base_url}}/api/backend/data",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"backend",
-								"data"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "data"]
 						},
 						"description": "Fetches general dashboard data. Protected by the Rate Limiter Middleware."
 					},
@@ -40,25 +30,14 @@
 					"request": {
 						"method": "GET",
 						"header": [
-							{
-								"key": "X-User-Id",
-								"value": "1",
-								"type": "text"
-							}
+							{ "key": "X-User-Id", "value": "1", "type": "text" }
 						],
 						"url": {
 							"raw": "{{base_url}}/api/backend/users/42",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"backend",
-								"users",
-								"42"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "users", "42"]
 						},
-						"description": "Fetches a specific user profile. Protected by Rate Limiter.\n\nTry with ID '0' (e.g. `users/10`) to test the 404 handler."
+						"description": "Fetches a specific user profile. Protected by Rate Limiter."
 					},
 					"response": []
 				},
@@ -67,22 +46,12 @@
 					"request": {
 						"method": "POST",
 						"header": [
-							{
-								"key": "X-User-Id",
-								"value": "1",
-								"type": "text"
-							}
+							{ "key": "X-User-Id", "value": "1", "type": "text" }
 						],
 						"url": {
 							"raw": "{{base_url}}/api/backend/process",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"backend",
-								"process"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "process"]
 						},
 						"description": "Triggers a simulated background processing job (+50ms latency). Protected by Rate Limiter."
 					},
@@ -91,7 +60,127 @@
 			]
 		},
 		{
-			"name": "2. Rate Limiter Admin APIs",
+			"name": "2. Employee Management API (Real CRUD)",
+			"description": "Full CRUD API for the Employee Management System.\n\nAll endpoints are under /api/backend/employees and are AUTOMATICALLY protected\nby the RateLimitInterceptor via WebConfig — no rate-limit code exists in the controller.\n\nSend X-User-Id header with every request for per-user rate limiting.\nOmit it to fall back to IP-based rate limiting.\n\nSeed Data (pre-loaded at startup):\n  ID 1 — Alice Johnson    | Engineering\n  ID 2 — Bob Martinez     | Product\n  ID 3 — Carol Williams   | Human Resources",
+			"item": [
+				{
+					"name": "POST Create Employee",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-User-Id", "value": "emp-tester", "type": "text" },
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Diana Prince\",\n  \"email\": \"diana.prince@company.com\",\n  \"department\": \"Security\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/api/backend/employees",
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "employees"]
+						},
+						"description": "Creates a new employee. Returns HTTP 201 Created.\n\nValidation rules (@Valid + Bean Validation):\n  - name: required, 2–100 chars\n  - email: required, valid email format\n  - department: required, max 100 chars\n\nTry sending an invalid body to see a 400 validation error."
+					},
+					"response": []
+				},
+				{
+					"name": "GET All Employees",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-User-Id", "value": "emp-tester", "type": "text" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backend/employees",
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "employees"]
+						},
+						"description": "Returns all employees. Includes 3 seed employees pre-loaded at startup.\n\nHit this endpoint rapidly to trigger the 429 rate limit response."
+					},
+					"response": []
+				},
+				{
+					"name": "GET Employee by ID",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-User-Id", "value": "emp-tester", "type": "text" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backend/employees/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "employees", "1"]
+						},
+						"description": "Returns a single employee by ID.\n\nExpected: 200 OK with Alice Johnson's data.\nChange ID to 999 to test the 404 Not Found response."
+					},
+					"response": []
+				},
+				{
+					"name": "PUT Update Employee",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{ "key": "X-User-Id", "value": "emp-tester", "type": "text" },
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Alice Johnson\",\n  \"email\": \"alice.johnson@newdomain.com\",\n  \"department\": \"Platform Engineering\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/api/backend/employees/1",
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "employees", "1"]
+						},
+						"description": "Updates an existing employee's fields. Returns the updated object.\n\nThe ID comes from the URL path — NOT from the body.\nTry updating ID 999 to see a 404 Not Found response."
+					},
+					"response": []
+				},
+				{
+					"name": "DELETE Employee",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{ "key": "X-User-Id", "value": "emp-tester", "type": "text" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backend/employees/3",
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "employees", "3"]
+						},
+						"description": "Deletes an employee by ID. Returns 200 OK with confirmation.\n\nDeletes Carol Williams (ID: 3) by default.\nTry deleting the same ID twice — second request returns 404.\nTry ID 999 for an immediate 404 response."
+					},
+					"response": []
+				},
+				{
+					"name": "POST Create Employee (Validation Error Demo)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "X-User-Id", "value": "emp-tester", "type": "text" },
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"\",\n  \"email\": \"not-a-valid-email\",\n  \"department\": \"\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/api/backend/employees",
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "employees"]
+						},
+						"description": "Intentionally sends invalid data to demonstrate @Valid Bean Validation.\n\nExpected: HTTP 400 Bad Request with all field errors:\n  {\n    \"success\": false,\n    \"message\": \"Request validation failed. Please correct the errors.\",\n    \"data\": {\n      \"name\": \"Employee name must not be blank\",\n      \"email\": \"Employee email must be a valid email address\",\n      \"department\": \"Employee department must not be blank\"\n    }\n  }"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Rate Limiter Admin APIs",
 			"item": [
 				{
 					"name": "Get Status",
@@ -100,15 +189,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/rate-limit/status/user:1",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"rate-limit",
-								"status",
-								"user:1"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["api", "rate-limit", "status", "user:1"]
 						},
 						"description": "Returns the current state of a rate-limit bucket without consuming a token."
 					},
@@ -121,15 +203,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/rate-limit/reset/user:1",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"rate-limit",
-								"reset",
-								"user:1"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["api", "rate-limit", "reset", "user:1"]
 						},
 						"description": "Deletes the rate-limit bucket for a specific key, resetting it to full capacity."
 					},
@@ -142,14 +217,8 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/rate-limit/health",
-							"host": [
-								"{{base_url}}"
-							],
-							"path": [
-								"api",
-								"rate-limit",
-								"health"
-							]
+							"host": ["{{base_url}}"],
+							"path": ["api", "rate-limit", "health"]
 						},
 						"description": "Self-check to ensure the rate limiting infrastructure is healthy."
 					},
@@ -158,7 +227,7 @@
 			]
 		},
 		{
-			"name": "3. Actuator (Metrics)",
+			"name": "4. Actuator (Metrics)",
 			"item": [
 				{
 					"name": "Actuator Health",
@@ -168,14 +237,9 @@
 						"url": {
 							"raw": "http://localhost:8080/actuator/health",
 							"protocol": "http",
-							"host": [
-								"localhost"
-							],
+							"host": ["localhost"],
 							"port": "8080",
-							"path": [
-								"actuator",
-								"health"
-							]
+							"path": ["actuator", "health"]
 						}
 					},
 					"response": []
@@ -188,14 +252,9 @@
 						"url": {
 							"raw": "http://localhost:8080/actuator/metrics",
 							"protocol": "http",
-							"host": [
-								"localhost"
-							],
+							"host": ["localhost"],
 							"port": "8080",
-							"path": [
-								"actuator",
-								"metrics"
-							]
+							"path": ["actuator", "metrics"]
 						}
 					},
 					"response": []

@@ -5,10 +5,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * GLOBAL EXCEPTION HANDLER — Step 6: Production-Grade Error Management
@@ -104,7 +107,50 @@ public class GlobalExceptionHandler {
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // 3. Resource Not Found → HTTP 404
+    // 3. Bean Validation Failure → HTTP 400 (triggered by @Valid on @RequestBody)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Handles @Valid validation failures thrown when request body fields fail
+     * their Bean Validation constraints (e.g., @NotBlank, @Email, @Size).
+     *
+     * Maps to HTTP 400 Bad Request.
+     *
+     * We collect ALL field errors (not just the first one) so the client can
+     * fix all problems in a single round-trip, rather than one error at a time.
+     *
+     * Example response data:
+     *   {
+     *     "name": "Employee name must not be blank",
+     *     "email": "Employee email must be a valid email address"
+     *   }
+     *
+     * @param ex the validation exception populated by Spring's ArgumentResolver
+     * @return 400 response with a map of field → error message
+     */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationErrors(
+            MethodArgumentNotValidException ex) {
+
+        // Collect every field error into a map: fieldName → defaultMessage
+        Map<String, String> errors = ex.getBindingResult().getFieldErrors().stream()
+                .collect(Collectors.toMap(
+                        FieldError::getField,
+                        fieldError -> fieldError.getDefaultMessage() != null
+                                ? fieldError.getDefaultMessage() : "Validation failed",
+                        // If two constraints fail on the same field, merge the messages
+                        (msg1, msg2) -> msg1 + "; " + msg2
+                ));
+
+        log.info("[GlobalExceptionHandler] Validation failed: {} error(s)", errors.size());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse<>(false, "Request validation failed. Please correct the errors.", errors));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // 4. Resource Not Found → HTTP 404
     // ─────────────────────────────────────────────────────────────────────────────
 
     /**
@@ -126,7 +172,7 @@ public class GlobalExceptionHandler {
     }
 
     // ─────────────────────────────────────────────────────────────────────────────
-    // 4. Catch-All Generic Exception → HTTP 500
+    // 5. Catch-All Generic Exception → HTTP 500
     // ─────────────────────────────────────────────────────────────────────────────
 
     /**
