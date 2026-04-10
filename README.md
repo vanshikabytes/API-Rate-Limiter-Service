@@ -4,7 +4,7 @@ A production-ready, high-performance API Rate Limiter implementation using the *
 
 ---
 
-## 🚀 Key Features
+##  Key Features
 
 - **Token Bucket Algorithm**: Standard algorithm for controlling traffic flow with high precision.
 - **Middleware Integration**: Enforces limits across all `/api/backend/**` endpoints BEFORE they reach the controller.

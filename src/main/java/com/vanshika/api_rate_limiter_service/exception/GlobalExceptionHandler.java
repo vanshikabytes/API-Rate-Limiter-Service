@@ -14,53 +14,20 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * GLOBAL EXCEPTION HANDLER — Step 6: Production-Grade Error Management
- *
- * ─────────────────────────────────────────────────────────────
- * What is @RestControllerAdvice?
- * ─────────────────────────────────────────────────────────────
- * A specialized @Component for building global, cross-cutting error handlers
- * for REST components. It can catch exceptions from:
- *   ✔ Controller methods
- *   ✔ Interceptors (if using a ControllerAdvice with an ExceptionHandler)
- *   ✔ Service methods
- *
- * Benefits:
- *   ✔ Consistency: EVERY endpoint in the backend follows the same JSON shape for errors.
- *   ✔ Cleanliness: Controllers only have "happy-path" code. Error mapping is centralized here.
- *   ✔ Decoupling: The service layer can throw custom exceptions without knowing about HTTP.
- *
- * ─────────────────────────────────────────────────────────────
- * Why HTTP status codes matter?
- * ─────────────────────────────────────────────────────────────
- * APIs are meant for both humans and machines.
- *
- *   ✔ Status 400: "You (client) sent bad data" (e.g., empty key)
- *   ✔ Status 404: "You (client) asked for something that doesn't exist" (e.g., missing user)
- *   ✔ Status 429: "You (client) are calling too fast" (e.g., rate limit hit)
- *   ✔ Status 500: "I (server) crashed" (e.g., unexpected error)
- *
- * This allows client libraries (e.g., Axios, Fetch, OkHttp) to automatically
- * retry, back-off, or redirect based on the status code without parsing the JSON body.
+ * Centralized error handler for the entire application.
+ * 
+ * Using @RestControllerAdvice allows us to catch exceptions from any controller or interceptor
+ * and return a consistent JSON structure to the client. This keeps our business logic
+ * clean of try-catch blocks and error mapping code.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 1. Rate Limit Exceeded → HTTP 429
-    // ─────────────────────────────────────────────────────────────────────────────
-
     /**
-     * Handles RateLimitExceededException thrown by the RateLimitInterceptor.
-     * Maps to HTTP 429 Too Many Requests (RFC 6585).
-     *
-     * We MUST include headers like Retry-After so that compliant clients
-     * know exactly when it is safe to try again.
-     *
-     * @param ex the rate limit exception
-     * @return 429 response Entity
+     * Handles rate limit hits (HTTP 429).
+     * We include the 'Retry-After' header so clients know when to back off.
      */
     @ExceptionHandler(RateLimitExceededException.class)
     public ResponseEntity<ApiResponse<Map<String, Object>>> handleRateLimitExceeded(
@@ -69,7 +36,6 @@ public class GlobalExceptionHandler {
         log.warn("[GlobalExceptionHandler] Rate Limit Hit: {} | Remaining: {} | Reset: {}s",
                 ex.getMessage(), ex.getRemainingTokens(), ex.getResetSeconds());
 
-        // Standard structure for 429 payload
         Map<String, Object> data = Map.of(
                 "remainingTokens", ex.getRemainingTokens(),
                 "capacity",        ex.getCapacity(),
@@ -84,16 +50,8 @@ public class GlobalExceptionHandler {
                 .body(new ApiResponse<>(false, ex.getMessage(), data));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 2. Invalid Key → HTTP 400
-    // ─────────────────────────────────────────────────────────────────────────────
-
     /**
-     * Handles InvalidKeyException thrown by the service layer.
-     * Maps to HTTP 400 Bad Request.
-     *
-     * @param ex the key validation exception
-     * @return 400 response Entity
+     * Handles identity/key validation errors (HTTP 400).
      */
     @ExceptionHandler(InvalidKeyException.class)
     public ResponseEntity<ApiResponse<Object>> handleInvalidKey(
@@ -106,39 +64,19 @@ public class GlobalExceptionHandler {
                 .body(new ApiResponse<>(false, "Invalid key provided: " + ex.getMessage(), "INVALID_KEY"));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 3. Bean Validation Failure → HTTP 400 (triggered by @Valid on @RequestBody)
-    // ─────────────────────────────────────────────────────────────────────────────
-
     /**
-     * Handles @Valid validation failures thrown when request body fields fail
-     * their Bean Validation constraints (e.g., @NotBlank, @Email, @Size).
-     *
-     * Maps to HTTP 400 Bad Request.
-     *
-     * We collect ALL field errors (not just the first one) so the client can
-     * fix all problems in a single round-trip, rather than one error at a time.
-     *
-     * Example response data:
-     *   {
-     *     "name": "Employee name must not be blank",
-     *     "email": "Employee email must be a valid email address"
-     *   }
-     *
-     * @param ex the validation exception populated by Spring's ArgumentResolver
-     * @return 400 response with a map of field → error message
+     * Handles @Valid validation failures for request bodies (HTTP 400).
+     * Collects all field errors so the user can fix everything in one go.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationErrors(
             MethodArgumentNotValidException ex) {
 
-        // Collect every field error into a map: fieldName → defaultMessage
         Map<String, String> errors = ex.getBindingResult().getFieldErrors().stream()
                 .collect(Collectors.toMap(
                         FieldError::getField,
                         fieldError -> fieldError.getDefaultMessage() != null
                                 ? fieldError.getDefaultMessage() : "Validation failed",
-                        // If two constraints fail on the same field, merge the messages
                         (msg1, msg2) -> msg1 + "; " + msg2
                 ));
 
@@ -149,16 +87,8 @@ public class GlobalExceptionHandler {
                 .body(new ApiResponse<>(false, "Request validation failed. Please correct the errors.", errors));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 4. Resource Not Found → HTTP 404
-    // ─────────────────────────────────────────────────────────────────────────────
-
     /**
-     * Handles ResourceNotFoundException thrown by the backend service.
-     * Maps to HTTP 404 Not Found.
-     *
-     * @param ex basic mapping exception
-     * @return 404 response Entity
+     * Handles resource lookup failures (HTTP 404).
      */
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiResponse<Object>> handleResourceNotFound(
@@ -171,20 +101,9 @@ public class GlobalExceptionHandler {
                 .body(new ApiResponse<>(false, ex.getMessage(), "RESOURCE_NOT_FOUND"));
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 5. Catch-All Generic Exception → HTTP 500
-    // ─────────────────────────────────────────────────────────────────────────────
-
     /**
-     * Handles all unexpected exceptions.
-     * Maps to HTTP 500 Internal Server Error.
-     *
-     * ⚠️ WARNING: In production, we NEVER return the actual Exception message
-     * as it could leak sensitive internal details (SQL queries, stack traces, etc.).
-     * We return a generic message to the client but log the full trace for the VPC.
-     *
-     * @param ex the unexpected crash
-     * @return 500 response Entity
+     * Catch-all for any unhandled exceptions (HTTP 500).
+     * We don't expose stack traces or internal messages to the client for security reasons.
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Object>> handleGenericException(
@@ -193,8 +112,6 @@ public class GlobalExceptionHandler {
         log.error("[GlobalExceptionHandler] INTERNAL SERVER ERROR (500) | Message: {} | Type: {}",
                 ex.getMessage(), ex.getClass().getName(), ex);
 
-        // Production mapping: Hide the exception details from the outside world.
-        // During dev, you might set a profile to include 'ex.getMessage()' or use a debugger.
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse<>(false, "A server-side error occurred. Our engineers have been notified.", "INTERNAL_SERVER_ERROR"));

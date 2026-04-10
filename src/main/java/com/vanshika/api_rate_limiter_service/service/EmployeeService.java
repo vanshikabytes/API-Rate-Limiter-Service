@@ -10,86 +10,24 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * EMPLOYEE SERVICE — Business Logic Layer
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * What is this class?
- * ─────────────────────────────────────────────────────────────────────────────
- * The service layer sits between the Controller (HTTP) and the Repository
- * (Data). It is responsible for:
- *   ✔ Business rule validation (e.g., duplicate email check — extensible)
- *   ✔ Orchestrating calls to one or more repositories
- *   ✔ Translating data-layer "Optional.empty()" into meaningful domain
- *     exceptions (ResourceNotFoundException → HTTP 404 via GlobalExceptionHandler)
- *   ✔ Logging significant business events
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * Separation of Concerns (why 3 layers?):
- * ─────────────────────────────────────────────────────────────────────────────
- *
- *   ┌──────────────────────────────────────┐
- *   │  EmployeeController  (HTTP layer)    │  Maps HTTP ↔ service calls
- *   ├──────────────────────────────────────┤
- *   │  EmployeeService     (Business layer)│  ← YOU ARE HERE
- *   ├──────────────────────────────────────┤
- *   │  EmployeeRepository  (Data layer)    │  Reads/writes from ConcurrentHashMap
- *   └──────────────────────────────────────┘
- *
- * Each layer only knows about the one below it. The controller does NOT
- * talk to the repository directly — this ensures business rules can be
- * changed in one place without affecting the HTTP layer.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * Why throw ResourceNotFoundException here and not in the repository?
- * ─────────────────────────────────────────────────────────────────────────────
- * The repository's job is data retrieval — returning Optional<Employee>
- * is neutral. The business decision to call a missing record an "error"
- * belongs to the service layer, which understands domain semantics.
- *
- * GlobalExceptionHandler catches ResourceNotFoundException and maps it to
- * HTTP 404 — so the controller never has to check null or Optional.
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * Rate Limiting Note:
- * ─────────────────────────────────────────────────────────────────────────────
- * There is ZERO rate-limiting code in this service.
- * By the time any method here runs, the RateLimitInterceptor has already:
- *   1. Identified the caller (X-User-Id header or IP)
- *   2. Consumed a token from their bucket
- *   3. Set X-RateLimit-* headers on the response
- *
- * This service simply executes business logic — it doesn't know or care
- * whether rate limiting is in place. This is the middleware pattern.
+ * Handles business logic for employee management.
+ * 
+ * This layer orchestrates data between the controller and repository. 
+ * Notice that it doesn't contain any rate-limiting code — that's handled 
+ * as a cross-cutting concern in the interceptor layer.
  */
 @Service
 public class EmployeeService {
 
     private static final Logger log = LoggerFactory.getLogger(EmployeeService.class);
-
-    /**
-     * Constructor injection — the preferred Spring pattern.
-     * Makes dependencies explicit, immutable, and easy to test with mocks.
-     */
     private final EmployeeRepository employeeRepository;
 
     public EmployeeService(EmployeeRepository employeeRepository) {
         this.employeeRepository = employeeRepository;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // CREATE
-    // ─────────────────────────────────────────────────────────────────────────
-
     /**
-     * Creates and persists a new Employee.
-     *
-     * The employee's id field should be null on entry — the repository
-     * assigns a unique ID via AtomicLong before persisting.
-     *
-     * Business extension point: Add duplicate-email check here before saving.
-     *
-     * @param employee the employee data from the POST request body
-     * @return the saved Employee with its assigned ID
+     * Saves a new employee. IDs are generated automatically by the repository.
      */
     public Employee createEmployee(Employee employee) {
         log.info("[EmployeeService] Creating new employee: name={}, department={}",
@@ -101,19 +39,9 @@ public class EmployeeService {
         return saved;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // READ (single)
-    // ─────────────────────────────────────────────────────────────────────────
-
     /**
-     * Fetches a single Employee by their unique ID.
-     *
-     * If the ID does not exist in the repository, throws
-     * ResourceNotFoundException, which GlobalExceptionHandler maps to HTTP 404.
-     *
-     * @param id the employee ID from the URL path variable
-     * @return the found Employee
-     * @throws ResourceNotFoundException if no employee with the given ID exists
+     * Finds an employee by ID. 
+     * Throws ResourceNotFoundException if they don't exist, which maps to a 404 response.
      */
     public Employee getEmployee(Long id) {
         log.info("[EmployeeService] Looking up employee: id={}", id);
@@ -125,17 +53,8 @@ public class EmployeeService {
                 });
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // READ (all)
-    // ─────────────────────────────────────────────────────────────────────────
-
     /**
-     * Returns all employees in the system.
-     *
-     * Returns an empty list (not null, not an exception) if no employees exist.
-     * Callers should always expect a list — even if it is empty.
-     *
-     * @return list of all employees (may be empty)
+     * Lists all employees in the system.
      */
     public List<Employee> getAllEmployees() {
         List<Employee> employees = employeeRepository.findAll();
@@ -143,20 +62,8 @@ public class EmployeeService {
         return employees;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // UPDATE
-    // ─────────────────────────────────────────────────────────────────────────
-
     /**
-     * Updates the fields of an existing Employee.
-     *
-     * The ID is derived from the URL path, not from the request body,
-     * to prevent clients from accidentally changing their own ID.
-     *
-     * @param id      the ID of the employee to update
-     * @param updated the new field values from the PUT request body
-     * @return the updated Employee
-     * @throws ResourceNotFoundException if no employee with the given ID exists
+     * Updates an existing employee's details.
      */
     public Employee updateEmployee(Long id, Employee updated) {
         log.info("[EmployeeService] Updating employee: id={}", id);
@@ -168,19 +75,8 @@ public class EmployeeService {
                 });
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // DELETE
-    // ─────────────────────────────────────────────────────────────────────────
-
     /**
-     * Deletes an Employee by ID.
-     *
-     * In a real application this might be a "soft delete" (setting an
-     * is_deleted flag) rather than a physical removal. For simplicity, we
-     * perform a hard delete from the map.
-     *
-     * @param id the ID of the employee to delete
-     * @throws ResourceNotFoundException if no employee with the given ID exists
+     * Deletes an employee from the system.
      */
     public void deleteEmployee(Long id) {
         log.info("[EmployeeService] Deleting employee: id={}", id);

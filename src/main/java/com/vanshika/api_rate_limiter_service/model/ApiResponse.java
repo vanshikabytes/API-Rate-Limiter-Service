@@ -1,5 +1,11 @@
 package com.vanshika.api_rate_limiter_service.model;
 
+/**
+ * Standard API envelope for all responses.
+ * 
+ * Using a consistent structure helps frontend developers and API clients
+ * handle successes and errors uniformly.
+ */
 public class ApiResponse<T> {
 
   private boolean success;
