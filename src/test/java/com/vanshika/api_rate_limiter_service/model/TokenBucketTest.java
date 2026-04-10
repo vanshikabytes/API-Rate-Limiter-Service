@@ -13,7 +13,7 @@ class TokenBucketTest {
 
   @Test
   void shouldConsumeTokenWhenAvailable() {
-    TokenBucket bucket = new TokenBucket(2, 0);
+    TokenBucket bucket = new TokenBucket(2, 2, 60);
 
     assertTrue(bucket.tryConsume());
     assertEquals(1, bucket.getRemainingTokens());
@@ -21,7 +21,7 @@ class TokenBucketTest {
 
   @Test
   void shouldNotConsumeWhenNoTokensLeft() {
-    TokenBucket bucket = new TokenBucket(1, 0);
+    TokenBucket bucket = new TokenBucket(1, 1, 60);
 
     bucket.tryConsume(); // consume first
     boolean result = bucket.tryConsume(); // second attempt
@@ -32,7 +32,8 @@ class TokenBucketTest {
 
   @Test
   void shouldRefillTokensOverTime() throws InterruptedException {
-    TokenBucket bucket = new TokenBucket(1, 1);
+    // 1 token capacity, refill 1 token every 1 second
+    TokenBucket bucket = new TokenBucket(1, 1, 1);
 
     bucket.tryConsume(); // empty bucket
 
@@ -42,8 +43,25 @@ class TokenBucketTest {
   }
 
   @Test
+  void shouldAllowPartialRefill() throws InterruptedException {
+    // 10 tokens capacity, refill 10 tokens every 1 second (10 tokens/sec)
+    TokenBucket bucket = new TokenBucket(10, 10, 1);
+    
+    // Exhaust tokens
+    for(int i=0; i<10; i++) bucket.tryConsume();
+    assertEquals(0, bucket.getRemainingTokens());
+
+    // Wait 500ms -> should have ~5 tokens
+    Thread.sleep(550); 
+    
+    long remaining = bucket.getRemainingTokens();
+    assertTrue(remaining >= 5, "Should have refilled at least 5 tokens, but got " + remaining);
+    assertTrue(remaining < 10, "Should not have fully refilled yet");
+  }
+
+  @Test
   void shouldAllow100RequestsAndReject101() {
-    TokenBucket bucket = new TokenBucket(100, 0);
+    TokenBucket bucket = new TokenBucket(100, 100, 60);
 
     for (int i = 0; i < 100; i++) {
       assertTrue(bucket.tryConsume(), "Request " + (i + 1) + " should be allowed");
@@ -52,19 +70,11 @@ class TokenBucketTest {
     assertFalse(bucket.tryConsume(), "Request 101 should be rejected");
   }
 
-  /**
-   * CONCURRENCY TEST — Task 3
-   *
-   * Validates that TokenBucket is thread-safe.
-   * Multiple threads consume tokens simultaneously.
-   * We expect exactly 'capacity' tokens to be consumed successfully,
-   * no matter how many threads try or in what order.
-   */
   @Test
   void shouldHandleConcurrentRequests() throws InterruptedException {
       int capacity = 1000;
       int threadCount = 50;
-      TokenBucket bucket = new TokenBucket(capacity, 0);
+      TokenBucket bucket = new TokenBucket(capacity, 0, 60);
 
       ExecutorService executor = Executors.newFixedThreadPool(threadCount);
       CountDownLatch latch = new CountDownLatch(1);
@@ -95,4 +105,4 @@ class TokenBucketTest {
       assertEquals(0, bucket.getRemainingTokens(),
           "Bucket should be empty after all possible tokens were consumed.");
   }
-}
+}

@@ -20,6 +20,7 @@ public class InMemoryBucketRepository implements BucketRepository {
     @Override
     public TokenBucket getBucket(String key,
             long capacity,
+            long refillTokens,
             long windowSeconds) {
 
         // Use computeIfAbsent for atomic creation.
@@ -27,8 +28,9 @@ public class InMemoryBucketRepository implements BucketRepository {
         // the same user.
         return bucketStore.computeIfAbsent(
                 key,
-                k -> new TokenBucket(capacity, windowSeconds));
+                k -> new TokenBucket(capacity, refillTokens, windowSeconds));
     }
+
 
     @Override
     public void removeBucket(String key) {

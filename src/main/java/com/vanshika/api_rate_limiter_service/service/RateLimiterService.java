@@ -37,7 +37,7 @@ public class RateLimiterService {
         }
 
         RateLimiterProperties.LimitConfig config = resolveConfig(key);
-        TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getWindowSeconds());
+        TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getRefillRate(), config.getWindowSeconds());
 
         boolean allowed = bucket.tryConsume();
         long remaining = bucket.getRemainingTokens();
@@ -55,7 +55,7 @@ public class RateLimiterService {
         }
 
         RateLimiterProperties.LimitConfig config = resolveConfig(key);
-        TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getWindowSeconds());
+        TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getRefillRate(), config.getWindowSeconds());
 
         long remaining = bucket.getRemainingTokens();
         long resetSeconds = bucket.getSecondsUntilRefill();
@@ -79,7 +79,7 @@ public class RateLimiterService {
         }
 
         RateLimiterProperties.LimitConfig config = resolveConfig(key);
-        return repository.getBucket(key, config.getCapacity(), config.getWindowSeconds());
+        return repository.getBucket(key, config.getCapacity(), config.getRefillRate(), config.getWindowSeconds());
     }
 
     // Helper to decide which limit config (user vs ip) to apply based on the key

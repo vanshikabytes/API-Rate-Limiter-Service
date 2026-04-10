@@ -24,8 +24,9 @@ class RateLimiterServiceTest {
         RateLimiterProperties properties = new RateLimiterProperties();
         RateLimiterProperties.LimitConfig defaultConfig = new RateLimiterProperties.LimitConfig();
         defaultConfig.setCapacity(1);
-        defaultConfig.setRefillRate(0); // no refill → easy to exhaust
+        defaultConfig.setRefillRate(1); // refill 1 token every 60 seconds
         defaultConfig.setWindowSeconds(60);
+
 
         properties.setLimits(java.util.Map.of("default", defaultConfig));
 

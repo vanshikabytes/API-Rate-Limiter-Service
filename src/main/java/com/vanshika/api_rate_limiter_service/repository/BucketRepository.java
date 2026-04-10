@@ -13,7 +13,8 @@ public interface BucketRepository {
     /**
      * Retrieves an existing bucket or initializes a new one for the given key.
      */
-    TokenBucket getBucket(String key, long capacity, long windowSeconds);
+    TokenBucket getBucket(String key, long capacity, long refillTokens, long windowSeconds);
+
 
     /**
      * Clears a bucket entry, effectively resetting the rate limit for that key.

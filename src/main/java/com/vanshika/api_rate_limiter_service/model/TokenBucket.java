@@ -1,31 +1,43 @@
 package com.vanshika.api_rate_limiter_service.model;
 
-import java.time.Instant;
-import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+/**
+ * A true Token Bucket implementation with continuous refill.
+ * Tokens are added gradually over time rather than in bursts at window boundaries.
+ */
 public class TokenBucket {
+    private static final Logger logger = LoggerFactory.getLogger(TokenBucket.class);
+
     private final long capacity;
-    private final long windowSeconds;
-    private final AtomicLong tokens;
-    private volatile Instant lastRefillTime;
+    private final double refillRatePerSecond;
+    private double tokens;
+    private long lastRefillTime; // In nanoseconds
 
     /**
      * Creates a new TokenBucket.
      *
-     * @param capacity      Maximum number of tokens (requests) allowed per window.
-     * @param windowSeconds Duration in seconds before the bucket fully refills.
+     * @param capacity      Maximum number of tokens (requests) allowed in the bucket.
+     * @param refillTokens  Number of tokens added over the duration of a window.
+     * @param windowSeconds Duration in seconds for the refill cycle.
      */
-    public TokenBucket(long capacity, long windowSeconds) {
+    public TokenBucket(long capacity, long refillTokens, long windowSeconds) {
         this.capacity = capacity;
-        this.windowSeconds = windowSeconds;
-        this.tokens = new AtomicLong(capacity);
-        this.lastRefillTime = Instant.now();
+        // refillRatePerSecond = tokens / seconds
+        this.refillRatePerSecond = windowSeconds > 0 ? (double) refillTokens / windowSeconds : 0;
+        this.tokens = capacity;
+        this.lastRefillTime = System.nanoTime();
     }
 
     public synchronized boolean tryConsume() {
         refill();
-        if (tokens.get() > 0) {
-            tokens.decrementAndGet();
+        
+        logger.debug("Tokens before consume: {}", tokens);
+        
+        if (tokens >= 1.0) {
+            tokens -= 1.0;
+            logger.debug("Tokens after consume: {}", tokens);
             return true;
         }
         return false;
@@ -33,13 +45,16 @@ public class TokenBucket {
 
     public synchronized long getRemainingTokens() {
         refill();
-        return tokens.get();
+        return (long) Math.floor(tokens);
     }
 
     public synchronized long getSecondsUntilRefill() {
-        Instant now = Instant.now();
-        long elapsed = now.getEpochSecond() - lastRefillTime.getEpochSecond();
-        return Math.max(0, windowSeconds - elapsed);
+        refill();
+        if (tokens >= 1.0) {
+            return 0;
+        }
+        // seconds = tokens_needed / refillRate
+        return refillRatePerSecond > 0 ? (long) Math.ceil((1.0 - tokens) / refillRatePerSecond) : 0;
     }
 
     public long getCapacity() {
@@ -47,21 +62,23 @@ public class TokenBucket {
     }
 
     public synchronized boolean isExpired() {
-        long elapsed = Instant.now().getEpochSecond() - lastRefillTime.getEpochSecond();
-        return elapsed > 300;
-
+        long elapsedNanos = System.nanoTime() - lastRefillTime;
+        return elapsedNanos > 300L * 1_000_000_000L; // 5 minutes in nanoseconds
     }
 
-    // REFILL LOGIC
+    /**
+     * Continuous refill logic.
+     * Tokens added = (timeElapsedSinceLastRefill * refillRatePerSecond)
+     */
     private void refill() {
-        // windowSeconds == 0 means "never auto-refill" (used in tests and no-refill configs)
-        if (windowSeconds == 0) return;
-
-        Instant now = Instant.now();
-        long elapsed = now.getEpochSecond() - lastRefillTime.getEpochSecond();
-        if (elapsed >= windowSeconds) {
-            tokens.set(capacity); // full refill after window
+        long now = System.nanoTime();
+        double elapsedSeconds = (now - lastRefillTime) / 1_000_000_000.0;
+        
+        if (elapsedSeconds > 0) {
+            double tokensToAdd = elapsedSeconds * refillRatePerSecond;
+            tokens = Math.min(capacity, tokens + tokensToAdd);
             lastRefillTime = now;
+            logger.debug("Refilled tokens. Current tokens: {}", tokens);
         }
     }
-}
+}
