@@ -3,7 +3,7 @@ package com.vanshika.api_rate_limiter_service.model;
 /**
  * Snapshot of a client's rate limit state.
  * 
- * We use this DTO to pass usage data between the service and interceptor layers 
+ * We use this DTO to pass usage data between the service and interceptor layers
  * without exposing the internal TokenBucket implementation.
  */
 public class RateLimitStatus {

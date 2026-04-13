@@ -3,7 +3,6 @@ package com.vanshika.api_rate_limiter_service.service;
 import com.vanshika.api_rate_limiter_service.config.RateLimiterProperties;
 import com.vanshika.api_rate_limiter_service.exception.InvalidKeyException;
 import com.vanshika.api_rate_limiter_service.model.RateLimitStatus;
-import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 import com.vanshika.api_rate_limiter_service.repository.InMemoryBucketRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,10 +34,15 @@ class RateLimiterServiceTest {
 
     @Test
     void shouldBlockAfterCapacityReached() {
-        TokenBucket bucket = service.getBucket("user:1");
+        // GIVEN: capacity = 1 (set in setup)
+        RateLimitStatus firstResult = service.getRateLimitStatus("user:1");
+        assertTrue(firstResult.isAllowed(), "First request should be allowed");
 
-        assertTrue(bucket.tryConsume(),  "First request should be allowed");
-        assertFalse(bucket.tryConsume(), "Second request should be blocked (capacity = 1)");
+        // WHEN: second request made immediately
+        RateLimitStatus secondResult = service.getRateLimitStatus("user:1");
+
+        // THEN: should be blocked
+        assertFalse(secondResult.isAllowed(), "Second request should be blocked (capacity = 1)");
     }
 
     @Test

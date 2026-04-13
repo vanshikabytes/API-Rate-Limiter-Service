@@ -28,6 +28,23 @@ public class RateLimiterService {
     }
 
     /**
+     * Checks the rate limit status using a custom configuration (override).
+     * Used by the Rules Engine to apply specific endpoint/time-based limits.
+     */
+    public RateLimitStatus getRateLimitStatusWithOverride(
+            String key,
+            long capacity,
+            long refillTokens,
+            long windowSeconds) {
+
+        if (key == null || key.isBlank()) {
+            throw new InvalidKeyException("Key cannot be null or empty");
+        }
+
+        return repository.consumeToken(key, capacity, refillTokens, windowSeconds);
+    }
+
+    /**
      * Checks the rate limit status and consumes a token if available.
      * Centralizing this here keeps our interceptors and controllers thin.
      */
@@ -37,13 +54,7 @@ public class RateLimiterService {
         }
 
         RateLimiterProperties.LimitConfig config = resolveConfig(key);
-        TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getRefillRate(), config.getWindowSeconds());
-
-        boolean allowed = bucket.tryConsume();
-        long remaining = bucket.getRemainingTokens();
-        long resetSeconds = bucket.getSecondsUntilRefill();
-
-        return new RateLimitStatus(key, remaining, config.getCapacity(), resetSeconds, allowed);
+        return repository.consumeToken(key, config.getCapacity(), config.getRefillRate(), config.getWindowSeconds());
     }
 
     /**
@@ -55,12 +66,7 @@ public class RateLimiterService {
         }
 
         RateLimiterProperties.LimitConfig config = resolveConfig(key);
-        TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getRefillRate(), config.getWindowSeconds());
-
-        long remaining = bucket.getRemainingTokens();
-        long resetSeconds = bucket.getSecondsUntilRefill();
-
-        return new RateLimitStatus(key, remaining, config.getCapacity(), resetSeconds, true);
+        return repository.getStatus(key, config.getCapacity(), config.getRefillRate(), config.getWindowSeconds());
     }
 
     /**
@@ -71,15 +77,6 @@ public class RateLimiterService {
             throw new InvalidKeyException("Key cannot be null or empty");
         }
         repository.removeBucket(key);
-    }
-
-    public TokenBucket getBucket(String key) {
-        if (key == null || key.isBlank()) {
-            throw new InvalidKeyException("Key cannot be null or empty");
-        }
-
-        RateLimiterProperties.LimitConfig config = resolveConfig(key);
-        return repository.getBucket(key, config.getCapacity(), config.getRefillRate(), config.getWindowSeconds());
     }
 
     // Helper to decide which limit config (user vs ip) to apply based on the key
@@ -95,4 +92,4 @@ public class RateLimiterService {
         // Fallback to default config
         return properties.getLimits().get("default");
     }
-}
+}

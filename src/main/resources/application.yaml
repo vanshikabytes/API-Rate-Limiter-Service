@@ -2,14 +2,32 @@ spring:
   application:
     name: api-rate-limiter-service
 
+  # ─────────────────────────────────────────────────────────────
+  # REDIS — Centralized store for distributed rate limiting.
+  # When the 'local' profile is active, the app uses
+  # InMemoryBucketRepository and these settings are ignored.
+  # ─────────────────────────────────────────────────────────────
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      # Lettuce pool settings — keeps connections warm and avoids
+      # per-request connect overhead.
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 4
+          min-idle: 1
+
 server:
   port: 8080
 
 # ─────────────────────────────────────────────────────────────
-# RATE LIMITER CONFIGURATION — Step 5 Revision
+# RATE LIMITER CONFIGURATION
 # ─────────────────────────────────────────────────────────────
-# capacity:   Maximum number of tokens in the bucket.
-# refillRate: Tokens added per second.
+# capacity:      Maximum tokens in the bucket.
+# refillRate:    Tokens added over one windowSeconds period.
+# windowSeconds: Duration of the rate limit window.
 # ─────────────────────────────────────────────────────────────
 rate-limiter:
   limits:
@@ -30,7 +48,7 @@ rate-limiter:
       windowSeconds: 60
 
 # ─────────────────────────────────────────────────────────────
-# ACTUATOR CONFIGURATION — Step 7 Polish
+# ACTUATOR
 # ─────────────────────────────────────────────────────────────
 management:
   endpoints:
