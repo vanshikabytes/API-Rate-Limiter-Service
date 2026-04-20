@@ -1,7 +1,9 @@
 package com.vanshika.api_rate_limiter_service;
 
+import com.vanshika.api_rate_limiter_service.config.properties.TierConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
@@ -12,6 +14,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  */
 @SpringBootApplication
 @EnableScheduling
+@EnableConfigurationProperties(TierConfig.class) // NEW: Register TierConfig for hierarchical limits
 public class ApiRateLimiterServiceApplication {
 
 	public static void main(String[] args) {

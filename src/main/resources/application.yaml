@@ -9,24 +9,52 @@ server:
 # RATE LIMITER CONFIGURATION — Step 5 Revision
 # ─────────────────────────────────────────────────────────────
 # capacity:   Maximum number of tokens in the bucket.
-# refillRate: Tokens added per second.
 # ─────────────────────────────────────────────────────────────
 rate-limiter:
+  # Existing base blocks
+  user:
+    capacity: 10
+    refillTokens: 10
+    windowSeconds: 60
+  ip:
+    capacity: 5
+    refillTokens: 5
+    windowSeconds: 60
+  backend:
+    capacity: 20
+    refillTokens: 20
+    windowSeconds: 60
+
   limits:
     default:
       capacity: 5
-      refillRate: 5
+      refillTokens: 5
       windowSeconds: 60
 
   users:
     demo-user:
       capacity: 5
-      refillRate: 5
+      refillTokens: 5
       windowSeconds: 60
 
     premium-user:
       capacity: 100
-      refillRate: 100
+      refillTokens: 100
+      windowSeconds: 60
+
+  # NEW: Tiers for User Tier System feature
+  tiers:
+    free:
+      capacity: 3
+      refillTokens: 3
+      windowSeconds: 60
+    gold:
+      capacity: 10
+      refillTokens: 10
+      windowSeconds: 60
+    premium:
+      capacity: 50
+      refillTokens: 50
       windowSeconds: 60
 
 # ─────────────────────────────────────────────────────────────
