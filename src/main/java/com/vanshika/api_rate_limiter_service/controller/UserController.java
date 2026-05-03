@@ -84,7 +84,7 @@ public class UserController {
      * user.
      * 
      * @param userId  The ID of the user to upgrade/downgrade.
-     * @param request The new tier level (free, gold, premium).
+     * @param request The new tier level (free, gold, platinum).
      * @return 200 OK with the updated user details.
      */
     @PatchMapping("/{userId}/tier")

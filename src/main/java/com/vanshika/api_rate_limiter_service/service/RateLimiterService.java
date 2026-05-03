@@ -142,6 +142,7 @@ public class RateLimiterService {
         }
 
         // NEW: EXISTING FALLBACK (logic updated to use explicit fields)
+        if (clientKey.startsWith("api-key:")) return properties.getApiKey();
         if (clientKey.startsWith("user:"))    return properties.getUser();
         if (clientKey.startsWith("backend:")) return properties.getBackend();
         return properties.getIp();

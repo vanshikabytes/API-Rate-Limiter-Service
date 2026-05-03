@@ -19,6 +19,6 @@ public class UpdateTierRequest {
      * Must be one of the three supported levels: free, gold, or premium.
      */
     @NotBlank(message = "tier must not be blank")
-    @Pattern(regexp = "free|gold|premium", message = "tier must be one of: free, gold, premium")
+    @Pattern(regexp = "free|gold|platinum", message = "tier must be one of: free, gold, platinum")
     private String tier;
 }

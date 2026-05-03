@@ -65,6 +65,21 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles business logic violations (HTTP 400).
+     * For example, trying to create a user that already exists.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIllegalArgument(
+            IllegalArgumentException ex) {
+
+        log.info("[GlobalExceptionHandler] Bad Request: Logic violation: {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse<>(false, ex.getMessage(), "BAD_REQUEST"));
+    }
+
+    /**
      * Handles @Valid validation failures for request bodies (HTTP 400).
      * Collects all field errors so the user can fix everything in one go.
      */
@@ -114,6 +129,6 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ApiResponse<>(false, "A server-side error occurred. Our engineers have been notified.", "INTERNAL_SERVER_ERROR"));
+                .body(new ApiResponse<>(false, "Server Error: " + ex.getMessage(), "INTERNAL_SERVER_ERROR"));
     }
 }

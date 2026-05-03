@@ -9,7 +9,7 @@ import lombok.Setter;
  * Represents a registered user in the system with an optional tier assignment.
  * 
  * Users are the primary entities for identity-based rate limiting.
- * A user can be assigned a tier (free, gold, premium) which dictates their
+ * A user can be assigned a tier (free, gold, platinum) which dictates their
  * specific rate limits.
  */
 @Getter

@@ -19,6 +19,7 @@ public class RateLimiterProperties {
   private RateLimitConfig user; // NEW: Added for prefix-based fallback
   private RateLimitConfig ip; // NEW: Added for prefix-based fallback
   private RateLimitConfig backend; // NEW: Added for prefix-based fallback
+  private RateLimitConfig apiKey; // NEW: Added for API key identification
 
   public Map<String, RateLimitConfig> getLimits() {
     return limits;
@@ -58,6 +59,14 @@ public class RateLimiterProperties {
 
   public void setBackend(RateLimitConfig backend) { // NEW: Setter for prefix-based fallback
     this.backend = backend;
+  }
+
+  public RateLimitConfig getApiKey() { // NEW: Getter for API key identification
+    return apiKey;
+  }
+
+  public void setApiKey(RateLimitConfig apiKey) { // NEW: Setter for API key identification
+    this.apiKey = apiKey;
   }
 
   /**

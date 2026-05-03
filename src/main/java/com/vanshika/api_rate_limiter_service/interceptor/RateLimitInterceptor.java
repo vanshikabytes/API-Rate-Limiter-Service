@@ -9,10 +9,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
 /**
- * Intercepts incoming requests to enforce rate limits before they reach the controller.
+ * Intercepts incoming requests to enforce rate limits before they reach the
+ * controller.
  * 
- * We throw a custom exception on limit hits instead of writing to the response here.
- * This keeps the logic clean and lets the GlobalExceptionHandler handle the JSON formatting.
+ * We throw a custom exception on limit hits instead of writing to the response
+ * here.
+ * This keeps the logic clean and lets the GlobalExceptionHandler handle the
+ * JSON formatting.
  */
 @Component
 public class RateLimitInterceptor implements HandlerInterceptor {
@@ -25,20 +28,29 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
     @Override
     public boolean preHandle(HttpServletRequest request,
-                              HttpServletResponse response,
-                              Object handler) throws Exception {
+            HttpServletResponse response,
+            Object handler) throws Exception {
 
-        // Identify client by 'X-User-Id' header, fallback to IP address
+        // Identify client: API Key → User ID → IP Address (Priority Order)
+        String apiKey = request.getHeader("X-API-Key");
         String userId = request.getHeader("X-User-Id");
-        String key = (userId != null && !userId.isBlank()) ? "user:" + userId : "ip:" + request.getRemoteAddr();
+
+        String key;
+        if (apiKey != null && !apiKey.isBlank()) {
+            key = "api-key:" + apiKey;
+        } else if (userId != null && !userId.isBlank()) {
+            key = "user:" + userId;
+        } else {
+            key = "ip:" + request.getRemoteAddr();
+        }
 
         // Check token availability
         RateLimitStatus status = rateLimiterService.getRateLimitStatus(key);
 
         // Always include limit metadata in headers for client-side visibility
         response.setHeader("X-RateLimit-Remaining", String.valueOf(status.getRemainingTokens()));
-        response.setHeader("X-RateLimit-Capacity",  String.valueOf(status.getCapacity()));
-        response.setHeader("X-RateLimit-Reset",     String.valueOf(status.getResetSeconds()));
+        response.setHeader("X-RateLimit-Capacity", String.valueOf(status.getCapacity()));
+        response.setHeader("X-RateLimit-Reset", String.valueOf(status.getResetSeconds()));
 
         if (!status.isAllowed()) {
             // Throwing an exception here triggers the global error handler
@@ -47,8 +59,7 @@ public class RateLimitInterceptor implements HandlerInterceptor {
                     "Rate limit exceeded. Try again in " + status.getResetSeconds() + " second(s).",
                     status.getRemainingTokens(),
                     status.getCapacity(),
-                    status.getResetSeconds()
-            );
+                    status.getResetSeconds());
         }
 
         return true; // Token consumed, allow request to proceed

@@ -25,10 +25,10 @@ public class TierConfig {
     private RateLimiterProperties.RateLimitConfig gold;
 
     /**
-     * Configuration for the 'premium' tier.
+     * Configuration for the 'platinum' tier.
      * The most generous tier for power users or paid subscribers.
      */
-    private RateLimiterProperties.RateLimitConfig premium;
+    private RateLimiterProperties.RateLimitConfig platinum;
 
     /**
      * Resolves the RateLimitConfig based on the tier name.
@@ -41,7 +41,7 @@ public class TierConfig {
         return switch (tier.toLowerCase()) {
             case "free" -> free;
             case "gold" -> gold;
-            case "premium" -> premium;
+            case "platinum" -> platinum;
             default -> null;
         };
     }
@@ -62,11 +62,11 @@ public class TierConfig {
         this.gold = gold;
     }
 
-    public RateLimiterProperties.RateLimitConfig getPremium() {
-        return premium;
+    public RateLimiterProperties.RateLimitConfig getPlatinum() {
+        return platinum;
     }
 
-    public void setPremium(RateLimiterProperties.RateLimitConfig premium) {
-        this.premium = premium;
+    public void setPlatinum(RateLimiterProperties.RateLimitConfig platinum) {
+        this.platinum = platinum;
     }
 }

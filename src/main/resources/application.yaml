@@ -20,27 +20,31 @@ rate-limiter:
     capacity: 5
     refillTokens: 5
     windowSeconds: 60
-  backend:
-    capacity: 20
-    refillTokens: 20
-    windowSeconds: 60
+  # backend:
+  #   capacity: 20
+  #   refillTokens: 20
+  #   windowSeconds: 60
+  api-key:
+    capacity: 100
+    refillTokens: 100
+    windowSeconds: 3600
 
-  limits:
-    default:
-      capacity: 5
-      refillTokens: 5
-      windowSeconds: 60
+  # limits:
+  #   default:
+  #     capacity: 5
+  #     refillTokens: 5
+  #     windowSeconds: 60
 
-  users:
-    demo-user:
-      capacity: 5
-      refillTokens: 5
-      windowSeconds: 60
+  # users:
+  #   demo-user:
+  #     capacity: 5
+  #     refillTokens: 5
+  #     windowSeconds: 60
 
-    premium-user:
-      capacity: 100
-      refillTokens: 100
-      windowSeconds: 60
+  #   premium-user:
+  #     capacity: 100
+  #     refillTokens: 100
+  #     windowSeconds: 60
 
   # NEW: Tiers for User Tier System feature
   tiers:
@@ -52,13 +56,13 @@ rate-limiter:
       capacity: 10
       refillTokens: 10
       windowSeconds: 60
-    premium:
+    platinum:
       capacity: 50
       refillTokens: 50
       windowSeconds: 60
 
 # ─────────────────────────────────────────────────────────────
-# ACTUATOR CONFIGURATION — Step 7 Polish
+# ACTUATOR CONFIGURATION 
 # ─────────────────────────────────────────────────────────────
 management:
   endpoints:
