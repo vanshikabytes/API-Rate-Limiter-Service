@@ -84,10 +84,10 @@ Import the `API-Rate-Limiter-Collection.json` file. Use the `base_url` variable.
 Run multiple requests in parallel to trigger a 429:
 ```bash
 # Windows (PowerShell)
-foreach ($i in 1..10) { curl -X GET http://localhost:8080/api/backend/data -H "X-User-Id: user-1" }
-```
+1..60 | ForEach-Object { curl.exe -s -I -H "X-user-id: Rohan" http://localhost:8080/api/backend/employees/3 | Select-String "HTTP/" }
 
----
+
+FOR /L %i IN (1,1,60) DO curl -s -I -H "X-user-id: Rohan" http://localhost:8080/api/backend/employees/3
 
 ## 🧪 Demo Scenario
 
