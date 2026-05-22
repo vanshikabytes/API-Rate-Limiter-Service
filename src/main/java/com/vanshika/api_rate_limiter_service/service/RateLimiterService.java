@@ -8,19 +8,30 @@ import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 import com.vanshika.api_rate_limiter_service.model.User;
 import com.vanshika.api_rate_limiter_service.repository.BucketRepository;
 import com.vanshika.api_rate_limiter_service.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 /**
  * Orchestrates rate limiting logic.
- * 
- * This service is the heart of the rate limiter. it coordinates between
+ *
+ * This service is the heart of the rate limiter. It coordinates between
  * configuration resolution, bucket storage (in-memory or distributed),
  * and the token bucket algorithm.
+ *
+ * Phase-2 additions:
+ *  - Tier expiration: if a user's tier has a past tierExpiresAt, they are
+ *    automatically treated as FREE without any manual downgrade step.
+ *  - Storage abstraction: BucketRepository is injected — switching from
+ *    in-memory to Redis requires only a config flag change, not code changes.
  */
 @Service
 public class RateLimiterService {
+
+    private static final Logger logger = LoggerFactory.getLogger(RateLimiterService.class);
 
     /**
      * Interface for token bucket storage.
@@ -35,20 +46,17 @@ public class RateLimiterService {
     private final RateLimiterProperties properties;
 
     /**
-     * NEW: In-memory store for registered users.
+     * In-memory store for registered users.
      * Used to resolve user tiers before applying rate limits.
      */
     private final UserRepository userRepository;
 
     /**
-     * NEW: Hierarchical configuration for tiered limits (free, gold, premium).
+     * Hierarchical configuration for tiered limits (FREE, PRO, ENTERPRISE, UNLIMITED).
      * Provides specific limits for users who have a tier assigned.
      */
     private final TierConfig tierConfig;
 
-    /**
-     * Full constructor for dependency injection.
-     */
     public RateLimiterService(BucketRepository repository,
             RateLimiterProperties properties,
             UserRepository userRepository,
@@ -61,7 +69,7 @@ public class RateLimiterService {
 
     /**
      * Checks the rate limit status and consumes a token if available.
-     * 
+     *
      * @param key The client key (e.g., user:alice, ip:127.0.0.1).
      * @return RateLimitStatus containing remaining tokens and allowed flag.
      */
@@ -71,14 +79,14 @@ public class RateLimiterService {
         }
 
         RateLimiterProperties.RateLimitConfig config = resolveConfig(key);
-        // NEW: use getRefillTokens() instead of getRefillRate()
-        TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds());
+        TokenBucket bucket = repository.getBucket(
+                key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds());
 
-        boolean allowed = bucket.tryConsume();
-        long remaining = bucket.getRemainingTokens();
-        long resetSeconds = bucket.getSecondsUntilRefill();
+        boolean allowed    = bucket.tryConsume();
+        long    remaining  = bucket.getRemainingTokens();
+        long    resetSecs  = bucket.getSecondsUntilRefill();
 
-        return new RateLimitStatus(key, remaining, config.getCapacity(), resetSeconds, allowed);
+        return new RateLimitStatus(key, remaining, config.getCapacity(), resetSecs, allowed);
     }
 
     /**
@@ -90,13 +98,13 @@ public class RateLimiterService {
         }
 
         RateLimiterProperties.RateLimitConfig config = resolveConfig(key);
-        // NEW: use getRefillTokens()
-        TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds());
+        TokenBucket bucket = repository.getBucket(
+                key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds());
 
         long remaining = bucket.getRemainingTokens();
-        long resetSeconds = bucket.getSecondsUntilRefill();
+        long resetSecs = bucket.getSecondsUntilRefill();
 
-        return new RateLimitStatus(key, remaining, config.getCapacity(), resetSeconds, true);
+        return new RateLimitStatus(key, remaining, config.getCapacity(), resetSecs, true);
     }
 
     /**
@@ -113,38 +121,60 @@ public class RateLimiterService {
         if (key == null || key.isBlank()) {
             throw new InvalidKeyException("Key cannot be null or empty");
         }
-
         RateLimiterProperties.RateLimitConfig config = resolveConfig(key);
-        // NEW: use getRefillTokens()
-        return repository.getBucket(key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds());
+        return repository.getBucket(
+                key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds());
     }
 
     /**
-     * Resolves the limit configuration for a given key.
-     * 
-     * NEW: First checks if the user has an assigned tier (free, gold, premium).
-     * If not, falls back to prefix-based static configuration (user:, backend:, ip:).
+     * Resolves the limit configuration for a given client key.
+     *
+     * Resolution order:
+     *  1. If the key maps to a registered user with an assigned tier:
+     *       a. Check if tierExpiresAt is set and in the past.
+     *          If expired → log a warning, fall back to FREE tier config.
+     *       b. Otherwise → return the tier-specific config from TierConfig.
+     *  2. Prefix-based static fallback:
+     *       api-key: → apiKey config
+     *       user:    → user config
+     *       backend: → backend config
+     *       default  → ip config
      */
     private RateLimiterProperties.RateLimitConfig resolveConfig(String clientKey) {
-        // NEW: check if this key maps to a registered user with a tier
+
+        // ── Step 1: User-tier resolution ─────────────────────────────────────
         if (clientKey.startsWith("user:")) {
-            String userId = clientKey.substring(5); // NEW: extract userId from key "user:alice" → "alice"
-            Optional<User> userOpt = userRepository.findById(userId); // NEW: look up User in UserRepository
+            String userId = clientKey.substring(5); // "user:alice" → "alice"
+            Optional<User> userOpt = userRepository.findById(userId);
+
             if (userOpt.isPresent()) {
-                String tier = userOpt.get().getTier();
+                User user = userOpt.get();
+                String tier = user.getTier();
+
                 if (tier != null) {
-                    RateLimiterProperties.RateLimitConfig config = tierConfig.getConfigForTier(tier); // NEW: get tier config
-                    if (config != null) {
-                        return config;
+                    // Phase-2: Automatic tier expiration
+                    LocalDateTime expiresAt = user.getTierExpiresAt();
+                    if (expiresAt != null && expiresAt.isBefore(LocalDateTime.now())) {
+                        logger.warn("Tier '{}' for user '{}' expired at {}. " +
+                                    "Auto-downgrading to FREE tier.",
+                                tier, userId, expiresAt);
+                        // Re-evaluated every request — no mutation of User object.
+                        RateLimiterProperties.RateLimitConfig freeConfig =
+                                tierConfig.getConfigForTier("FREE");
+                        if (freeConfig != null) return freeConfig;
+                    } else {
+                        RateLimiterProperties.RateLimitConfig tierCfg =
+                                tierConfig.getConfigForTier(tier);
+                        if (tierCfg != null) return tierCfg;
                     }
                 }
             }
         }
 
-        // NEW: EXISTING FALLBACK (logic updated to use explicit fields)
+        // ── Step 2: Prefix-based static fallback ─────────────────────────────
         if (clientKey.startsWith("api-key:")) return properties.getApiKey();
         if (clientKey.startsWith("user:"))    return properties.getUser();
         if (clientKey.startsWith("backend:")) return properties.getBackend();
         return properties.getIp();
     }
-}
+}

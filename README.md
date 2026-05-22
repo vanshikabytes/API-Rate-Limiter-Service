@@ -98,3 +98,9 @@ FOR /L %i IN (1,1,60) DO curl -s -I -H "X-user-id: Rohan" http://localhost:8080/
 
 ---
 *Created by vanshika - API Rate Limiter Service Implementation*
+#To trigger a 429 Too Many Requests for a PRO user (limit 50)
+1..60 | ForEach-Object { 
+    $r = curl.exe -s -i -H "X-User-Id: Rohan" http://localhost:8080/api/backend/employees/1
+    $status = ($r | Select-String "HTTP/").ToString().Trim()
+    $remaining = ($r | Select-String "X-RateLimit-Remaining").ToString().Trim()
+    Write-Host "Request $_ : $status | $remaining"}

@@ -4,69 +4,66 @@ import com.vanshika.api_rate_limiter_service.config.RateLimiterProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
- * Configuration class for different user tiers (free, gold, premium).
- * 
- * This class maps the 'rate-limiter.tiers' section of application.yaml into Java objects.
- * It provides a central way to manage different service levels for users.
+ * Configuration class for the four user tiers: FREE, PRO, ENTERPRISE, UNLIMITED.
+ *
+ * Maps the 'rate-limiter.tiers' section of application.yaml into Java objects.
+ * Tier names are matched case-insensitively so "free", "FREE", and "Free" all resolve.
  */
 @ConfigurationProperties(prefix = "rate-limiter.tiers")
 public class TierConfig {
 
     /**
-     * Configuration for the 'free' tier.
-     * Chosen to be the most restrictive tier for basic users.
+     * FREE tier — most restrictive. Default for new or expired users.
+     * Capacity: 3 req/min.
      */
-    private RateLimiterProperties.RateLimitConfig free;
+    private RateLimiterProperties.RateLimitConfig FREE;
 
     /**
-     * Configuration for the 'gold' tier.
-     * A middle-ground tier for regular active users.
+     * PRO tier — standard paid tier.
+     * Capacity: 50 req/min.
      */
-    private RateLimiterProperties.RateLimitConfig gold;
+    private RateLimiterProperties.RateLimitConfig PRO;
 
     /**
-     * Configuration for the 'platinum' tier.
-     * The most generous tier for power users or paid subscribers.
+     * ENTERPRISE tier — high-volume tier for business clients.
+     * Capacity: 200 req/min.
      */
-    private RateLimiterProperties.RateLimitConfig platinum;
+    private RateLimiterProperties.RateLimitConfig ENTERPRISE;
 
     /**
-     * Resolves the RateLimitConfig based on the tier name.
-     * 
-     * @param tier The tier identifier (free, gold, premium).
+     * UNLIMITED tier — effectively no rate limiting (10 000 req/min).
+     * Intended for internal services or premium partners.
+     */
+    private RateLimiterProperties.RateLimitConfig UNLIMITED;
+
+    /**
+     * Resolves the RateLimitConfig for the given tier name (case-insensitive).
+     *
+     * @param tier The tier identifier (FREE, PRO, ENTERPRISE, UNLIMITED).
      * @return The matching RateLimitConfig, or null if unrecognized.
      */
     public RateLimiterProperties.RateLimitConfig getConfigForTier(String tier) {
         if (tier == null) return null;
-        return switch (tier.toLowerCase()) {
-            case "free" -> free;
-            case "gold" -> gold;
-            case "platinum" -> platinum;
-            default -> null;
+        return switch (tier.toUpperCase()) {
+            case "FREE"       -> FREE;
+            case "PRO"        -> PRO;
+            case "ENTERPRISE" -> ENTERPRISE;
+            case "UNLIMITED"  -> UNLIMITED;
+            default           -> null;
         };
     }
 
-    public RateLimiterProperties.RateLimitConfig getFree() {
-        return free;
-    }
+    // ── Getters & Setters ────────────────────────────────────────────────────
 
-    public void setFree(RateLimiterProperties.RateLimitConfig free) {
-        this.free = free;
-    }
+    public RateLimiterProperties.RateLimitConfig getFREE() { return FREE; }
+    public void setFREE(RateLimiterProperties.RateLimitConfig FREE) { this.FREE = FREE; }
 
-    public RateLimiterProperties.RateLimitConfig getGold() {
-        return gold;
-    }
+    public RateLimiterProperties.RateLimitConfig getPRO() { return PRO; }
+    public void setPRO(RateLimiterProperties.RateLimitConfig PRO) { this.PRO = PRO; }
 
-    public void setGold(RateLimiterProperties.RateLimitConfig gold) {
-        this.gold = gold;
-    }
+    public RateLimiterProperties.RateLimitConfig getENTERPRISE() { return ENTERPRISE; }
+    public void setENTERPRISE(RateLimiterProperties.RateLimitConfig ENTERPRISE) { this.ENTERPRISE = ENTERPRISE; }
 
-    public RateLimiterProperties.RateLimitConfig getPlatinum() {
-        return platinum;
-    }
-
-    public void setPlatinum(RateLimiterProperties.RateLimitConfig platinum) {
-        this.platinum = platinum;
-    }
+    public RateLimiterProperties.RateLimitConfig getUNLIMITED() { return UNLIMITED; }
+    public void setUNLIMITED(RateLimiterProperties.RateLimitConfig UNLIMITED) { this.UNLIMITED = UNLIMITED; }
 }

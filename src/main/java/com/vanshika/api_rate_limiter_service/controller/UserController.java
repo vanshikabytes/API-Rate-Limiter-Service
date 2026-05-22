@@ -15,38 +15,31 @@ import java.util.Collection;
 
 /**
  * REST controller for User Management operations.
- * 
- * This controller provides administrative endpoints to manage users and their
- * tiers.
- * Note that this controller is NOT under /api/backend/**, so it is not subject
- * to the rate limiting interceptor, avoiding circular rate limiting logic.
+ *
+ * Provides administrative endpoints to create users and manage their tiers.
+ * This controller is NOT under /api/backend/**, so it bypasses the rate-limit
+ * interceptor — preventing circular rate-limiting of admin operations.
  */
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
 
-    /**
-     * In-memory store for user data.
-     * Chosen to keep identity management lightweight for this phase.
-     */
+    /** In-memory store for user data. */
     private final UserRepository userRepository;
 
-    /**
-     * Constructor injection for the repository.
-     */
     public UserController(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     /**
      * Creates a new user in the system.
-     * 
-     * @param request The data for the new user, including ID and name.
+     *
+     * @param request The data for the new user, including ID and optional initial tier.
      * @return 201 Created with the saved user object.
      */
     @PostMapping
     public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody CreateUserRequest request) {
-        User user = new User(request.getUserId(), request.getTier());
+        User user = new User(request.getUserId(), request.getTier(), null);
         User savedUser = userRepository.save(user);
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -55,7 +48,7 @@ public class UserController {
 
     /**
      * Lists all registered users.
-     * 
+     *
      * @return 200 OK with a list of all users in the system.
      */
     @GetMapping
@@ -66,7 +59,7 @@ public class UserController {
 
     /**
      * Retrieves a specific user by their ID.
-     * 
+     *
      * @param userId The unique identifier to look up.
      * @return 200 OK or 404 via ResourceNotFoundException.
      */
@@ -80,11 +73,14 @@ public class UserController {
 
     /**
      * Assigns or updates the tier of an existing user.
-     * This update directly impacts how RateLimiterService resolves limits for this
-     * user.
-     * 
+     *
+     * Accepts an optional {@code expiresAt} timestamp. When provided, the
+     * system automatically downgrades the user back to FREE once that instant
+     * has passed — no manual intervention required.
+     *
      * @param userId  The ID of the user to upgrade/downgrade.
-     * @param request The new tier level (free, gold, platinum).
+     * @param request The new tier level (FREE, PRO, ENTERPRISE, UNLIMITED)
+     *                and an optional expiry timestamp.
      * @return 200 OK with the updated user details.
      */
     @PatchMapping("/{userId}/tier")
@@ -92,7 +88,8 @@ public class UserController {
             @PathVariable String userId,
             @Valid @RequestBody UpdateTierRequest request) {
 
-        User updatedUser = userRepository.updateTier(userId, request.getTier());
-        return ResponseEntity.ok(new ApiResponse<>(true, "User tier updated to " + request.getTier(), updatedUser));
+        User updatedUser = userRepository.updateTier(userId, request.getTier(), request.getExpiresAt());
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                "User tier updated to " + request.getTier().toUpperCase(), updatedUser));
     }
 }

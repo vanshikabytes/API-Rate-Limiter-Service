@@ -260,6 +260,185 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "5. Phase 2 - Tier & User Management",
+			"description": "Requests for managing users, assigning tiers (FREE, PRO, ENTERPRISE, UNLIMITED), and testing automatic tier expiration.\n\nResolution order enforced in RateLimiterService:\n  1. User-specific Tier (if not expired)\n  2. Automatic FREE tier (if expired)\n  3. Global user default (if user exists but no tier assigned)",
+			"item": [
+				{
+					"name": "Create User (Dave)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"dave\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users"]
+						},
+						"description": "Registers a new user 'dave' in the system. Initial tier is NULL."
+					},
+					"response": []
+				},
+				{
+					"name": "Upgrade Dave to PRO",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tier\": \"PRO\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/dave/tier",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "dave", "tier"]
+						},
+						"description": "Upgrades Dave to the PRO tier (50 req/min).\n\nCheck headers in the next request to see X-RateLimit-Capacity: 50."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Dave's PRO Limit",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-User-Id", "value": "dave", "type": "text" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backend/employees",
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "employees"]
+						},
+						"description": "Hit this request. Check headers:\n  X-RateLimit-Capacity should be 50."
+					},
+					"response": []
+				},
+				{
+					"name": "Create User (Charlie - Expired Demo)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userId\": \"charlie\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Expired PRO Tier to Charlie",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tier\": \"PRO\",\n  \"expiresAt\": \"2024-01-01T00:00:00\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/charlie/tier",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "charlie", "tier"]
+						},
+						"description": "Assigns a PRO tier that expired in 2024.\n\nSystem should auto-downgrade Charlie to FREE (3 req/min) on next use."
+					},
+					"response": []
+				},
+				{
+					"name": "Verify Charlie's Auto-Downgrade",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-User-Id", "value": "charlie", "type": "text" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backend/employees",
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "employees"]
+						},
+						"description": "Hit this request. Check headers:\n  X-RateLimit-Capacity should be 3 (not 50) because PRO is expired.\n\nCheck app logs for the WARN message."
+					},
+					"response": []
+				},
+				{
+					"name": "Assign Unlimited Tier",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json", "type": "text" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"tier\": \"UNLIMITED\"\n}",
+							"options": { "raw": { "language": "json" } }
+						},
+						"url": {
+							"raw": "{{base_url}}/api/users/dave/tier",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users", "dave", "tier"]
+						},
+						"description": "Assigns UNLIMITED tier (10,000 req/min)."
+					},
+					"response": []
+				},
+				{
+					"name": "GET All Registered Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/users",
+							"host": ["{{base_url}}"],
+							"path": ["api", "users"]
+						},
+						"description": "Lists all users with their current tiers and expiry dates."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "6. Phase 3 - X-Forwarded-For",
+			"description": "Requests to test IP-based rate limiting using X-Forwarded-For header.",
+			"item": [
+				{
+					"name": "Send X-Forwarded-For header",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "X-User-Id", "value": "user1", "type": "text" },
+							{ "key": "X-Forwarded-For", "value": "192.168.1.1", "type": "text" }
+						],
+						"url": {
+							"raw": "{{base_url}}/api/backend/employees",
+							"host": ["{{base_url}}"],
+							"path": ["api", "backend", "employees"]
+						},
+						"description": "Simulates a request coming through a proxy with a specific client IP."
+					},
+					"response": []
+				}
+			]
 		}
 	],
 	"variable": [

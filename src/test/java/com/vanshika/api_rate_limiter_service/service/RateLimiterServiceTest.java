@@ -39,13 +39,13 @@ class RateLimiterServiceTest {
     void shouldBlockAfterCapacityReached() {
         TokenBucket bucket = service.getBucket("user:1");
 
-        assertTrue(bucket.tryConsume(),  "First request should be allowed");
+        assertTrue(bucket.tryConsume(), "First request should be allowed");
         assertFalse(bucket.tryConsume(), "Second request should be blocked (capacity = 1)");
     }
 
     @Test
     void shouldReturnCorrectStatus() {
-        RateLimitStatus status = service.getRateLimitStatus("user:1");
+        RateLimitStatus status = service.getRateLimitStatus("user:1");// fetch or create call tryConsume() internally
 
         assertTrue(status.isAllowed(), "First request should be allowed");
         assertEquals(0, status.getRemainingTokens(), "Tokens should be exhausted");

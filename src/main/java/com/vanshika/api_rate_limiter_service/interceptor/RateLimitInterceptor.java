@@ -2,6 +2,8 @@ package com.vanshika.api_rate_limiter_service.interceptor;
 
 import com.vanshika.api_rate_limiter_service.exception.RateLimitExceededException;
 import com.vanshika.api_rate_limiter_service.model.RateLimitStatus;
+import com.vanshika.api_rate_limiter_service.model.RedisBackedTokenBucket;
+import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 import com.vanshika.api_rate_limiter_service.service.RateLimiterService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -41,7 +43,9 @@ public class RateLimitInterceptor implements HandlerInterceptor {
         } else if (userId != null && !userId.isBlank()) {
             key = "user:" + userId;
         } else {
-            key = "ip:" + request.getRemoteAddr();
+            String xff = request.getHeader("X-Forwarded-For");
+            String ip = (xff != null && !xff.isBlank()) ? xff.split(",")[0].trim() : request.getRemoteAddr();
+            key = "ip:" + ip;
         }
 
         // Check token availability
@@ -49,8 +53,14 @@ public class RateLimitInterceptor implements HandlerInterceptor {
 
         // Always include limit metadata in headers for client-side visibility
         response.setHeader("X-RateLimit-Remaining", String.valueOf(status.getRemainingTokens()));
-        response.setHeader("X-RateLimit-Capacity", String.valueOf(status.getCapacity()));
-        response.setHeader("X-RateLimit-Reset", String.valueOf(status.getResetSeconds()));
+        response.setHeader("X-RateLimit-Capacity",  String.valueOf(status.getCapacity()));
+        response.setHeader("X-RateLimit-Reset",     String.valueOf(status.getResetSeconds()));
+
+        // Phase 2: If Redis failed and the bucket fell back to fail-open, signal it
+        TokenBucket bucket = rateLimiterService.getBucket(key);
+        if (bucket instanceof RedisBackedTokenBucket redisBucket && redisBucket.isFallback()) {
+            response.setHeader("X-RateLimit-Fallback", "true");
+        }
 
         if (!status.isAllowed()) {
             // Throwing an exception here triggers the global error handler

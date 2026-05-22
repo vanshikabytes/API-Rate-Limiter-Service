@@ -31,3 +31,12 @@ build/
 
 ### VS Code ###
 .vscode/
+# Documentation, Diagrams, and Demo folders
+DOCUMENTATION.md
+PPT_Flow_Diagrams.md
+StudyGuide.md
+demo_walkthrough.md
+*.png
+demo/
+doc/
+
