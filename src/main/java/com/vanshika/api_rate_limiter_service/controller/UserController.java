@@ -6,6 +6,7 @@ import com.vanshika.api_rate_limiter_service.exception.ResourceNotFoundException
 import com.vanshika.api_rate_limiter_service.model.ApiResponse;
 import com.vanshika.api_rate_limiter_service.model.User;
 import com.vanshika.api_rate_limiter_service.repository.UserRepository;
+import com.vanshika.api_rate_limiter_service.service.RateLimiterService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,12 +31,14 @@ public class UserController {
      * Chosen to keep identity management lightweight for this phase.
      */
     private final UserRepository userRepository;
+    private final RateLimiterService rateLimiterService;
 
     /**
-     * Constructor injection for the repository.
+     * Constructor injection for the repository and rate limiter service.
      */
-    public UserController(UserRepository userRepository) {
+    public UserController(UserRepository userRepository, RateLimiterService rateLimiterService) {
         this.userRepository = userRepository;
+        this.rateLimiterService = rateLimiterService;
     }
 
     /**
@@ -92,7 +95,15 @@ public class UserController {
             @PathVariable String userId,
             @Valid @RequestBody UpdateTierRequest request) {
 
+        // Task 1 — Auto tier update (no manual reset needed)
+        // 1. update tier in UserRepository
         User updatedUser = userRepository.updateTier(userId, request.getTier());
-        return ResponseEntity.ok(new ApiResponse<>(true, "User tier updated to " + request.getTier(), updatedUser));
+
+        // 2. AUTO-INVALIDATE the old bucket immediately
+        rateLimiterService.reset("user:" + userId);
+
+        return ResponseEntity.ok(new ApiResponse<>(true,
+                "User tier updated to " + request.getTier() +
+                ". Rate limit bucket refreshed automatically.", updatedUser));
     }
 }
