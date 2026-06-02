@@ -45,8 +45,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", String.valueOf(ex.getResetSeconds()))
-                .header("X-RateLimit-Remaining", String.valueOf(ex.getRemainingTokens()))
-                .header("X-RateLimit-Capacity", String.valueOf(ex.getCapacity()))
                 .body(new ApiResponse<>(false, ex.getMessage(), data));
     }
 
