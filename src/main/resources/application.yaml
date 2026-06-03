@@ -13,17 +13,21 @@ server:
 # ─────────────────────────────────────────────────────────────
 rate-limiter:
   limits:
-    user:
+    default:
       capacity: 5
-      refillRate: 1
-    
-    ip:
-      capacity: 20
       refillRate: 5
-    
-    backend:
+      windowSeconds: 60
+
+  users:
+    demo-user:
+      capacity: 5
+      refillRate: 5
+      windowSeconds: 60
+
+    premium-user:
       capacity: 100
-      refillRate: 10
+      refillRate: 100
+      windowSeconds: 60
 
 # ─────────────────────────────────────────────────────────────
 # ACTUATOR CONFIGURATION — Step 7 Polish

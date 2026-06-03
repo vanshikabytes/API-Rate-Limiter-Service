@@ -1,12 +1,10 @@
 package com.vanshika.api_rate_limiter_service.model;
 
 /**
- * RATE LIMIT STATUS DTO
+ * Snapshot of a client's rate limit state.
  * 
- * Why this class exists?
- * 1. Business Logic State: Holds everything the caller needs at once.
- * 2. Decoupling: Controller doesn't need to touch TokenBucket methods directly.
- * 3. Immutable: Values are final after creation for better thread safety.
+ * We use this DTO to pass usage data between the service and interceptor layers 
+ * without exposing the internal TokenBucket implementation.
  */
 public class RateLimitStatus {
 

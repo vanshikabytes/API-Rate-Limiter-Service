@@ -53,7 +53,7 @@ class BackendControllerTest {
     @Test
     void shouldBlockWhenLimitExceeded() throws Exception {
         String userId = "test-1";
-        long capacity = properties.getLimits().get("user").getCapacity();
+        long capacity = properties.getLimits().get("default").getCapacity();
 
         // 1. Exhaust the bucket
         for (int i = 0; i < capacity; i++) {

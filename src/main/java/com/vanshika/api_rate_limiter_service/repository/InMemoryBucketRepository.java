@@ -7,33 +7,30 @@ import org.springframework.stereotype.Repository;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * IN-MEMORY REPOSITORY
- *
- * Implements BucketRepository (DIP - SOLID).
+ * In-memory storage for rate limit buckets.
  * 
- * Why ConcurrentHashMap? 
- * It is thread-safe and allows multiple threads to access buckets simultaneously without full locking.
+ * We use ConcurrentHashMap to handle high-concurrency access without locking
+ * the entire map.
  */
 @Repository
 public class InMemoryBucketRepository implements BucketRepository {
 
-    // Thread-safe map to store buckets by key
     private final ConcurrentHashMap<String, TokenBucket> bucketStore = new ConcurrentHashMap<>();
 
     @Override
     public TokenBucket getBucket(String key,
-                                 long capacity,
-                                 long refillRatePerSecond) {
+            long capacity,
+            long refillTokens,
+            long windowSeconds) {
 
-        /**
-         * Why computeIfAbsent?
-         * It ensures ATOMIC creation. If two threads try to create a bucket for the same key
-         * at the same time, only one will succeed, preventing overwriting and token loss.
-         */
+        // Use computeIfAbsent for atomic creation.
+        // This ensures two threads don't accidentally create two different buckets for
+        // the same user.
         return bucketStore.computeIfAbsent(
                 key,
-                k -> new TokenBucket(capacity, refillRatePerSecond));
+                k -> new TokenBucket(capacity, refillTokens, windowSeconds));
     }
+
 
     @Override
     public void removeBucket(String key) {
@@ -41,8 +38,7 @@ public class InMemoryBucketRepository implements BucketRepository {
     }
 
     /**
-     * Scheduled cleanup task to remove expired buckets every 60s.
-     * Prevents memory leaks by clearing out inactive users.
+     * Periodically removes silent/inactive buckets to prevent memory leaks.
      */
     @Scheduled(fixedRate = 60000)
     public void cleanup() {

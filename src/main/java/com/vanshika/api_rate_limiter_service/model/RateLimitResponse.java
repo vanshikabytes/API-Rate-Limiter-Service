@@ -1,18 +1,10 @@
 package com.vanshika.api_rate_limiter_service.model;
 
 /**
- * RATE LIMIT RESPONSE DTO
- *
- * Structured data payload returned inside ApiResponse<RateLimitResponse>.
- *
- * Keeping response structured and non-null for production standards.
- * Every response — allowed or blocked — carries this object so clients
- * always receive consistent, machine-readable metadata.
- *
- * Fields:
- *  key             — the identifier being rate-limited (e.g. "user:42")
- *  remainingTokens — how many requests the client can still make right now
- *  capacity        — the total bucket size (helps client understand the limit)
+ * Data Transfer Object for rate limit metadata.
+ * 
+ * Provides clients with machine-readable information about their current 
+ * usage and remaining quota.
  */
 public class RateLimitResponse {
 

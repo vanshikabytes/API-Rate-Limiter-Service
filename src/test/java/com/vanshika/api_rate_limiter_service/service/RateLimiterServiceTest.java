@@ -22,11 +22,13 @@ class RateLimiterServiceTest {
         InMemoryBucketRepository repository = new InMemoryBucketRepository();
 
         RateLimiterProperties properties = new RateLimiterProperties();
-        RateLimiterProperties.LimitConfig userConfig = new RateLimiterProperties.LimitConfig();
-        userConfig.setCapacity(1);
-        userConfig.setRefillRate(0); // no refill → easy to exhaust
+        RateLimiterProperties.LimitConfig defaultConfig = new RateLimiterProperties.LimitConfig();
+        defaultConfig.setCapacity(1);
+        defaultConfig.setRefillRate(1); // refill 1 token every 60 seconds
+        defaultConfig.setWindowSeconds(60);
 
-        properties.setLimits(java.util.Map.of("user", userConfig));
+
+        properties.setLimits(java.util.Map.of("default", defaultConfig));
 
         service = new RateLimiterService(repository, properties);
     }

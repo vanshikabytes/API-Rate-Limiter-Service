@@ -3,22 +3,22 @@ package com.vanshika.api_rate_limiter_service.repository;
 import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 
 /**
- * BUCKET REPOSITORY INTERFACE
- *
- * Why this abstraction?
- * 1. Decoupling: The service layer no longer depends on a specific implementation (In-Memory).
- * 2. SOLID (Dependency Inversion): High-level modules (Service) depend on abstractions (Interface).
- * 3. Scalability: We can easily swap In-Memory with Redis in Phase-2 without changing service logic.
+ * Interface for token bucket storage.
+ * 
+ * This abstraction allows us to switch from in-memory storage to a distributed
+ * store like Redis without having to modify our service logic.
  */
 public interface BucketRepository {
 
     /**
-     * Fetches an existing bucket or creates a new one.
+     * Retrieves an existing bucket or initializes a new one for the given key.
      */
-    TokenBucket getBucket(String key, long capacity, long refillRate);
+    TokenBucket getBucket(String key, long capacity, long refillTokens, long windowSeconds);
+
 
     /**
-     * Removes a bucket (used for reset).
+     * Clears a bucket entry, effectively resetting the rate limit for that key.
      */
+
     void removeBucket(String key);
 }
