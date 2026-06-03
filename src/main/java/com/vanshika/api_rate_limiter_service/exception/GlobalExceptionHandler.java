@@ -45,8 +45,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", String.valueOf(ex.getResetSeconds()))
-                .header("X-RateLimit-Remaining", String.valueOf(ex.getRemainingTokens()))
-                .header("X-RateLimit-Capacity", String.valueOf(ex.getCapacity()))
                 .body(new ApiResponse<>(false, ex.getMessage(), data));
     }
 
@@ -62,6 +60,21 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.BAD_REQUEST)
                 .body(new ApiResponse<>(false, "Invalid key provided: " + ex.getMessage(), "INVALID_KEY"));
+    }
+
+    /**
+     * Handles business logic violations (HTTP 400).
+     * For example, trying to create a user that already exists.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIllegalArgument(
+            IllegalArgumentException ex) {
+
+        log.info("[GlobalExceptionHandler] Bad Request: Logic violation: {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(new ApiResponse<>(false, ex.getMessage(), "BAD_REQUEST"));
     }
 
     /**
@@ -114,6 +127,6 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ApiResponse<>(false, "A server-side error occurred. Our engineers have been notified.", "INTERNAL_SERVER_ERROR"));
+                .body(new ApiResponse<>(false, "Server Error: " + ex.getMessage(), "INTERNAL_SERVER_ERROR"));
     }
 }

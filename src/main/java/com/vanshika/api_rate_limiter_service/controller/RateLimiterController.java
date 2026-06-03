@@ -11,20 +11,12 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * RATE LIMITER CONTROLLER — Step 4 (Clean Version)
- *
- * ─────────────────────────────────────────────────────
- * What changed from Step 3?
- * ─────────────────────────────────────────────────────
- * The old /{key} endpoint used to both CHECK and ENFORCE rate limiting.
- * That was wrong — the controller was doing middleware work.
- *
- * Step 4 fix:
+ * 
  * - Rate limit ENFORCEMENT → moved to RateLimitInterceptor (middleware)
  * - This controller now only exposes ADMIN/OBSERVABILITY endpoints:
- *     GET  /api/rate-limit/status/{key}  → inspect a key's current state
- *     POST /api/rate-limit/reset/{key}   → reset a key's bucket (admin)
- *     GET  /api/rate-limit/health        → health check
+ * GET /api/rate-limit/status/{key} → inspect a key's current state
+ * POST /api/rate-limit/reset/{key} → reset a key's bucket (admin)
+ * GET /api/rate-limit/health → health check
  *
  * These endpoints themselves are NOT protected by the interceptor
  * (which only covers /api/backend/**), because admin tools must
@@ -107,7 +99,8 @@ public class RateLimiterController {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Builds a consistent ResponseEntity with rate limit headers and structured body.
+     * Builds a consistent ResponseEntity with rate limit headers and structured
+     * body.
      * All endpoints in this controller funnel through here for uniformity.
      */
     private ResponseEntity<ApiResponse<RateLimitResponse>> buildResponse(
@@ -116,13 +109,12 @@ public class RateLimiterController {
         RateLimitResponse data = new RateLimitResponse(
                 status.getKey(),
                 status.getRemainingTokens(),
-                status.getCapacity()
-        );
+                status.getCapacity());
 
         ResponseEntity.BodyBuilder builder = ResponseEntity.status(httpStatus)
                 .header("X-RateLimit-Remaining", String.valueOf(status.getRemainingTokens()))
-                .header("X-RateLimit-Capacity",  String.valueOf(status.getCapacity()))
-                .header("X-RateLimit-Reset",     String.valueOf(status.getResetSeconds()));
+                .header("X-RateLimit-Capacity", String.valueOf(status.getCapacity()))
+                .header("X-RateLimit-Reset", String.valueOf(status.getResetSeconds()));
 
         // Add Retry-After only when signalling a 429 (client should wait)
         if (httpStatus == HttpStatus.TOO_MANY_REQUESTS) {

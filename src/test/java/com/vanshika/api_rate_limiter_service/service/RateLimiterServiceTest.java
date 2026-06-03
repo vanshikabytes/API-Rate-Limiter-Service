@@ -20,17 +20,19 @@ class RateLimiterServiceTest {
     @BeforeEach
     void setup() {
         InMemoryBucketRepository repository = new InMemoryBucketRepository();
+        com.vanshika.api_rate_limiter_service.repository.UserRepository userRepository = new com.vanshika.api_rate_limiter_service.repository.UserRepository();
+        com.vanshika.api_rate_limiter_service.config.properties.TierConfig tierConfig = new com.vanshika.api_rate_limiter_service.config.properties.TierConfig();
 
         RateLimiterProperties properties = new RateLimiterProperties();
-        RateLimiterProperties.LimitConfig defaultConfig = new RateLimiterProperties.LimitConfig();
+        RateLimiterProperties.RateLimitConfig defaultConfig = new RateLimiterProperties.RateLimitConfig();
         defaultConfig.setCapacity(1);
-        defaultConfig.setRefillRate(1); // refill 1 token every 60 seconds
+        defaultConfig.setRefillTokens(1); // refill 1 token every 60 seconds
         defaultConfig.setWindowSeconds(60);
 
+        properties.setIp(defaultConfig); // Set fallback limit
+        properties.setUser(defaultConfig); // Set user limit
 
-        properties.setLimits(java.util.Map.of("default", defaultConfig));
-
-        service = new RateLimiterService(repository, properties);
+        service = new RateLimiterService(repository, properties, userRepository, tierConfig);
     }
 
     @Test
