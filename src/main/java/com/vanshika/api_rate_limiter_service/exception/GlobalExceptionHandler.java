@@ -129,4 +129,19 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse<>(false, "Server Error: " + ex.getMessage(), "INTERNAL_SERVER_ERROR"));
     }
+
+    /**
+     * Handles cases where the rate limiter backend (e.g. Redis) is unavailable.
+     * Returns 503 Service Unavailable to gracefully fail closed.
+     */
+    @ExceptionHandler(RateLimiterUnavailableException.class)
+    public ResponseEntity<ApiResponse<Object>> handleRateLimiterUnavailable(
+            RateLimiterUnavailableException ex) {
+
+        log.error("[GlobalExceptionHandler] Rate Limiter Unavailable (503): {}", ex.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(new ApiResponse<>(false, "Service Temporarily Unavailable: " + ex.getMessage(), "SERVICE_UNAVAILABLE"));
+    }
 }
