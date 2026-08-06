@@ -35,18 +35,18 @@ class UserControllerTest {
     @Test
     void shouldUpdateTierAndAutoInvalidateBucket() throws Exception {
         // Given
-        User mockUser = new User("alice", "gold");
-        when(userRepository.updateTier(eq("alice"), eq("gold"))).thenReturn(mockUser);
+        User mockUser = new User("alice", "PRO", null);
+        when(userRepository.updateTier(eq("alice"), eq("PRO"), eq(null))).thenReturn(mockUser);
 
         // When/Then
         mockMvc.perform(patch("/api/users/alice/tier")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"tier\": \"gold\"}"))
+                        .content("{\"tier\": \"PRO\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
-                .andExpect(jsonPath("$.message").value("User tier updated to gold. Rate limit bucket refreshed automatically."))
+                .andExpect(jsonPath("$.message").value("User tier updated to PRO. Rate limit bucket refreshed automatically."))
                 .andExpect(jsonPath("$.data.userId").value("alice"))
-                .andExpect(jsonPath("$.data.tier").value("gold"));
+                .andExpect(jsonPath("$.data.tier").value("PRO"));
 
         // Verify that rateLimiterService.reset("user:alice") was called automatically (Task 1)
         verify(rateLimiterService, times(1)).reset("user:alice");

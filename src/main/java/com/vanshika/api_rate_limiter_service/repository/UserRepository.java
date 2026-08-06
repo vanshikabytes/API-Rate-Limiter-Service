@@ -54,15 +54,17 @@ public class UserRepository {
      * 
      * @param userId The ID of the user to update.
      * @param tier   The new tier to assign.
+     * @param expiresAt Optional LocalDateTime when this tier should expire.
      * @return The updated user object.
      * @throws ResourceNotFoundException if no user is found with the given ID.
      */
-    public User updateTier(String userId, String tier) {
+    public User updateTier(String userId, String tier, java.time.LocalDateTime expiresAt) {
         User user = userStore.get(userId);
         if (user == null) {
             throw new ResourceNotFoundException("User not found with ID: " + userId);
         }
         user.setTier(tier);
+        user.setTierExpiresAt(expiresAt);
         return user;
     }
 

@@ -2,46 +2,30 @@ package com.vanshika.api_rate_limiter_service.config.properties;
 
 import com.vanshika.api_rate_limiter_service.config.RateLimiterProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 
 /**
- * Configuration class for different user tiers (free, gold, premium).
+ * Configuration class for different user tiers (FREE, PRO, ENTERPRISE, UNLIMITED).
  * 
  * This class maps the 'rate-limiter.tiers' section of application.yaml into Java objects.
  * It provides a central way to manage different service levels for users.
  */
+@Component
 @ConfigurationProperties(prefix = "rate-limiter.tiers")
 public class TierConfig {
 
-    /**
-     * Configuration for the 'free' tier.
-     * Chosen to be the most restrictive tier for basic users.
-     */
-    private RateLimiterProperties.RateLimitConfig free;
+    private RateLimiterProperties.RateLimitConfig free = new RateLimiterProperties.RateLimitConfig();
+    private RateLimiterProperties.RateLimitConfig pro = new RateLimiterProperties.RateLimitConfig();
+    private RateLimiterProperties.RateLimitConfig enterprise = new RateLimiterProperties.RateLimitConfig();
+    private RateLimiterProperties.RateLimitConfig unlimited = new RateLimiterProperties.RateLimitConfig();
 
-    /**
-     * Configuration for the 'gold' tier.
-     * A middle-ground tier for regular active users.
-     */
-    private RateLimiterProperties.RateLimitConfig gold;
-
-    /**
-     * Configuration for the 'platinum' tier.
-     * The most generous tier for power users or paid subscribers.
-     */
-    private RateLimiterProperties.RateLimitConfig platinum;
-
-    /**
-     * Resolves the RateLimitConfig based on the tier name.
-     * 
-     * @param tier The tier identifier (free, gold, premium).
-     * @return The matching RateLimitConfig, or null if unrecognized.
-     */
     public RateLimiterProperties.RateLimitConfig getConfigForTier(String tier) {
         if (tier == null) return null;
-        return switch (tier.toLowerCase()) {
-            case "free" -> free;
-            case "gold" -> gold;
-            case "platinum" -> platinum;
+        return switch (tier.toUpperCase()) {
+            case "FREE" -> free;
+            case "PRO" -> pro;
+            case "ENTERPRISE" -> enterprise;
+            case "UNLIMITED" -> unlimited;
             default -> null;
         };
     }
@@ -54,19 +38,27 @@ public class TierConfig {
         this.free = free;
     }
 
-    public RateLimiterProperties.RateLimitConfig getGold() {
-        return gold;
+    public RateLimiterProperties.RateLimitConfig getPro() {
+        return pro;
     }
 
-    public void setGold(RateLimiterProperties.RateLimitConfig gold) {
-        this.gold = gold;
+    public void setPro(RateLimiterProperties.RateLimitConfig pro) {
+        this.pro = pro;
     }
 
-    public RateLimiterProperties.RateLimitConfig getPlatinum() {
-        return platinum;
+    public RateLimiterProperties.RateLimitConfig getEnterprise() {
+        return enterprise;
     }
 
-    public void setPlatinum(RateLimiterProperties.RateLimitConfig platinum) {
-        this.platinum = platinum;
+    public void setEnterprise(RateLimiterProperties.RateLimitConfig enterprise) {
+        this.enterprise = enterprise;
+    }
+
+    public RateLimiterProperties.RateLimitConfig getUnlimited() {
+        return unlimited;
+    }
+
+    public void setUnlimited(RateLimiterProperties.RateLimitConfig unlimited) {
+        this.unlimited = unlimited;
     }
 }

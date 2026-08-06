@@ -59,10 +59,17 @@ public class EmployeeController {
      * Fetches a single employee by ID.
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<Employee>> getEmployee(@PathVariable Long id) {
-        log.info("[EmployeeController] GET /api/backend/employees/{}", id);
+    public ResponseEntity<ApiResponse<Employee>> getEmployee(
+            @PathVariable Long id,
+            @RequestParam(required = false) String name) {
+        log.info("[EmployeeController] GET /api/backend/employees/{} with filter name={}", id, name);
 
         Employee employee = employeeService.getEmployee(id);
+
+        if (name != null && !name.equalsIgnoreCase(employee.getName())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse<>(false, "No employee found matching both ID=" + id + " and name=" + name, null));
+        }
 
         log.info("[EmployeeController] Returning employee: id={}, name={}", id, employee.getName());
 

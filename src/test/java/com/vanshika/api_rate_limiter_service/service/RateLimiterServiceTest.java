@@ -8,6 +8,8 @@ import com.vanshika.api_rate_limiter_service.repository.InMemoryBucketRepository
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -45,35 +47,38 @@ class RateLimiterServiceTest {
 
     @Test
     void shouldReturnCorrectStatus() {
-        RateLimitStatus status = service.getRateLimitStatus("user:1");
+        String uuid1 = UUID.randomUUID().toString();
+        RateLimitStatus status = service.reserveToken("user:1", uuid1);
 
         assertTrue(status.isAllowed(), "First request should be allowed");
         assertEquals(0, status.getRemainingTokens(), "Tokens should be exhausted");
         assertEquals(1, status.getCapacity());
         assertTrue(status.getResetSeconds() >= 1, "Reset seconds should be at least 1");
 
-        RateLimitStatus blockedStatus = service.getRateLimitStatus("user:1");
+        String uuid2 = UUID.randomUUID().toString();
+        RateLimitStatus blockedStatus = service.reserveToken("user:1", uuid2);
         assertFalse(blockedStatus.isAllowed(), "Second request should be blocked");
     }
 
     @Test
     void shouldResetBucket() {
-        service.getRateLimitStatus("user:1");
+        String uuid = UUID.randomUUID().toString();
+        service.reserveToken("user:1", uuid);
         service.reset("user:1");
 
-        RateLimitStatus afterReset = service.getRateLimitStatus("user:1");
+        RateLimitStatus afterReset = service.reserveToken("user:1", UUID.randomUUID().toString());
         assertTrue(afterReset.isAllowed(), "Request after reset should be allowed");
     }
 
     @Test
     void shouldThrowWhenKeyIsNull() {
         assertThrows(InvalidKeyException.class,
-                () -> service.getRateLimitStatus(null));
+                () -> service.reserveToken(null, UUID.randomUUID().toString()));
     }
 
     @Test
     void shouldThrowWhenKeyIsBlank() {
         assertThrows(InvalidKeyException.class,
-                () -> service.getRateLimitStatus("   "));
+                () -> service.reserveToken("   ", UUID.randomUUID().toString()));
     }
 }

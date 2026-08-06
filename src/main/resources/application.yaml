@@ -1,17 +1,41 @@
 spring:
   application:
-    name: api-rate-limiter-service
+    name: API-Rate-Limiter-Service
+  data:
+    redis:
+      # Local Standalone Development
+      host: localhost
+      port: 6379
+
+      # -----------------------------------------------------
+      # PRODUCTION DEPLOYMENT: REDIS CLUSTER
+      # To deploy this API to production, simply comment out the
+      # host/port above, and uncomment this cluster section.
+      # The Token Reservation Lua scripts are 100% cluster-compatible
+      # because they use {userId} Hash Tags to ensure atomic execution.
+      # -----------------------------------------------------
+      # cluster:
+      #   nodes:
+      #     - redis-node-1:6379
+      #     - redis-node-2:6379
+      #     - redis-node-3:6379
+      #     - redis-node-4:6379
+      #     - redis-node-5:6379
+      #     - redis-node-6:6379
 
 server:
   port: 8080
 
 # ─────────────────────────────────────────────────────────────
-# RATE LIMITER CONFIGURATION — Step 5 Revision
+# RATE LIMITER CONFIGURATION — Phase 2 (Redis + Tier Rename)
 # ─────────────────────────────────────────────────────────────
-# capacity:   Maximum number of tokens in the bucket.
+# storage: 'redis' uses Redis/Memurai; 'local' uses ConcurrentHashMap
+# capacity: Maximum number of tokens in the bucket.
 # ─────────────────────────────────────────────────────────────
 rate-limiter:
-  # Existing base blocks
+  storage: local
+
+  # Existing base blocks (prefix-based fallback)
   user:
     capacity: 10
     refillTokens: 10
@@ -46,23 +70,27 @@ rate-limiter:
   #     refillTokens: 100
   #     windowSeconds: 60
 
-  # NEW: Tiers for User Tier System feature
+  # Tiers for User Tier System feature (Phase 2)
   tiers:
     free:
       capacity: 3
       refillTokens: 3
       windowSeconds: 60
-    gold:
-      capacity: 10
-      refillTokens: 10
-      windowSeconds: 60
-    platinum:
+    pro:
       capacity: 50
       refillTokens: 50
       windowSeconds: 60
+    enterprise:
+      capacity: 200
+      refillTokens: 200
+      windowSeconds: 60
+    unlimited:
+      capacity: 10000
+      refillTokens: 10000
+      windowSeconds: 60
 
 # ─────────────────────────────────────────────────────────────
-# ACTUATOR CONFIGURATION 
+# ACTUATOR CONFIGURATION
 # ─────────────────────────────────────────────────────────────
 management:
   endpoints:

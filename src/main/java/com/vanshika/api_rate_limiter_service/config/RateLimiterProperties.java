@@ -20,6 +20,15 @@ public class RateLimiterProperties {
   private RateLimitConfig ip; // NEW: Added for prefix-based fallback
   private RateLimitConfig backend; // NEW: Added for prefix-based fallback
   private RateLimitConfig apiKey; // NEW: Added for API key identification
+  private String storage; // 'local' or 'redis'
+
+  public String getStorage() {
+    return storage;
+  }
+
+  public void setStorage(String storage) {
+    this.storage = storage;
+  }
 
   public Map<String, RateLimitConfig> getLimits() {
     return limits;

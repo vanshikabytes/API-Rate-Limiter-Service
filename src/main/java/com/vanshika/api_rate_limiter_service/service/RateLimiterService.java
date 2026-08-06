@@ -3,11 +3,14 @@ package com.vanshika.api_rate_limiter_service.service;
 import com.vanshika.api_rate_limiter_service.config.RateLimiterProperties;
 import com.vanshika.api_rate_limiter_service.config.properties.TierConfig;
 import com.vanshika.api_rate_limiter_service.exception.InvalidKeyException;
+import com.vanshika.api_rate_limiter_service.exception.RateLimiterUnavailableException;
 import com.vanshika.api_rate_limiter_service.model.RateLimitStatus;
 import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 import com.vanshika.api_rate_limiter_service.model.User;
 import com.vanshika.api_rate_limiter_service.repository.BucketRepository;
 import com.vanshika.api_rate_limiter_service.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -21,6 +24,8 @@ import java.util.Optional;
  */
 @Service
 public class RateLimiterService {
+
+    private static final Logger log = LoggerFactory.getLogger(RateLimiterService.class);
 
     /**
      * Interface for token bucket storage.
@@ -60,25 +65,47 @@ public class RateLimiterService {
     }
 
     /**
-     * Checks the rate limit status and consumes a token if available.
+     * Checks the rate limit status and reserves a token if available.
      * 
      * @param key The client key (e.g., user:alice, ip:127.0.0.1).
+     * @param reservationId Unique UUID for this request.
      * @return RateLimitStatus containing remaining tokens and allowed flag.
      */
-    public RateLimitStatus getRateLimitStatus(String key) {
+    public RateLimitStatus reserveToken(String key, String reservationId) {
         if (key == null || key.isBlank()) {
             throw new InvalidKeyException("Key cannot be null or empty");
         }
 
         RateLimiterProperties.RateLimitConfig config = resolveConfig(key);
-        // NEW: use getRefillTokens() instead of getRefillRate()
-        TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds());
+        try {
+            boolean allowed = repository.tryReserve(key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds(), reservationId);
+            
+            TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds());
+            long remaining = bucket.getRemainingTokens();
+            long resetSeconds = bucket.getSecondsUntilRefill();
 
-        boolean allowed = bucket.tryConsume();
-        long remaining = bucket.getRemainingTokens();
-        long resetSeconds = bucket.getSecondsUntilRefill();
+            return new RateLimitStatus(key, remaining, config.getCapacity(), resetSeconds, allowed, false);
+        } catch (Exception e) {
+            log.error("Redis connection failed during reserve", e);
+            // Fail Closed: Return 503 instead of 429
+            throw new RateLimiterUnavailableException("Rate limiter backend is unreachable", e);
+        }
+    }
 
-        return new RateLimitStatus(key, remaining, config.getCapacity(), resetSeconds, allowed);
+    public void commitToken(String key, String reservationId) {
+        try {
+            repository.commit(key, reservationId);
+        } catch (Exception e) {
+            log.error("Failed to commit reservation: {}", reservationId, e);
+        }
+    }
+
+    public void rollbackToken(String key, String reservationId) {
+        try {
+            repository.rollback(key, reservationId);
+        } catch (Exception e) {
+            log.error("Failed to rollback reservation: {}", reservationId, e);
+        }
     }
 
     /**
@@ -90,13 +117,15 @@ public class RateLimiterService {
         }
 
         RateLimiterProperties.RateLimitConfig config = resolveConfig(key);
-        // NEW: use getRefillTokens()
-        TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds());
+        try {
+            TokenBucket bucket = repository.getBucket(key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds());
+            long remaining = bucket.getRemainingTokens();
+            long resetSeconds = bucket.getSecondsUntilRefill();
 
-        long remaining = bucket.getRemainingTokens();
-        long resetSeconds = bucket.getSecondsUntilRefill();
-
-        return new RateLimitStatus(key, remaining, config.getCapacity(), resetSeconds, true);
+            return new RateLimitStatus(key, remaining, config.getCapacity(), resetSeconds, true, false);
+        } catch (Exception e) {
+            throw new RateLimiterUnavailableException("Rate limiter backend is unreachable", e);
+        }
     }
 
     /**
@@ -115,33 +144,32 @@ public class RateLimiterService {
         }
 
         RateLimiterProperties.RateLimitConfig config = resolveConfig(key);
-        // NEW: use getRefillTokens()
         return repository.getBucket(key, config.getCapacity(), config.getRefillTokens(), config.getWindowSeconds());
     }
 
     /**
      * Resolves the limit configuration for a given key.
-     * 
-     * NEW: First checks if the user has an assigned tier (free, gold, premium).
-     * If not, falls back to prefix-based static configuration (user:, backend:, ip:).
      */
     private RateLimiterProperties.RateLimitConfig resolveConfig(String clientKey) {
-        // NEW: check if this key maps to a registered user with a tier
         if (clientKey.startsWith("user:")) {
-            String userId = clientKey.substring(5); // NEW: extract userId from key "user:alice" → "alice"
-            Optional<User> userOpt = userRepository.findById(userId); // NEW: look up User in UserRepository
+            String userId = clientKey.substring(5);
+            Optional<User> userOpt = userRepository.findById(userId);
             if (userOpt.isPresent()) {
-                String tier = userOpt.get().getTier();
+                User user = userOpt.get();
+                String tier = user.getTier();
                 if (tier != null) {
-                    RateLimiterProperties.RateLimitConfig config = tierConfig.getConfigForTier(tier); // NEW: get tier config
-                    if (config != null) {
-                        return config;
+                    java.time.LocalDateTime expiresAt = user.getTierExpiresAt();
+                    if (expiresAt != null && expiresAt.isBefore(java.time.LocalDateTime.now())) {
+                        RateLimiterProperties.RateLimitConfig freeConfig = tierConfig.getConfigForTier("FREE");
+                        if (freeConfig != null) return freeConfig;
+                    } else {
+                        RateLimiterProperties.RateLimitConfig config = tierConfig.getConfigForTier(tier);
+                        if (config != null) return config;
                     }
                 }
             }
         }
 
-        // NEW: EXISTING FALLBACK (logic updated to use explicit fields)
         if (clientKey.startsWith("api-key:")) return properties.getApiKey();
         if (clientKey.startsWith("user:"))    return properties.getUser();
         if (clientKey.startsWith("backend:")) return properties.getBackend();

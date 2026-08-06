@@ -1,0 +1,37 @@
+spring:
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+rate-limiter:
+  storage: local
+  user:
+    capacity: 10
+    refillTokens: 10
+    windowSeconds: 60
+  ip:
+    capacity: 5
+    refillTokens: 5
+    windowSeconds: 60
+  api-key:
+    capacity: 100
+    refillTokens: 100
+    windowSeconds: 3600
+  tiers:
+    FREE:
+      capacity: 3
+      refillTokens: 3
+      windowSeconds: 60
+    PRO:
+      capacity: 50
+      refillTokens: 50
+      windowSeconds: 60
+    ENTERPRISE:
+      capacity: 200
+      refillTokens: 200
+      windowSeconds: 60
+    UNLIMITED:
+      capacity: 10000
+      refillTokens: 10000
+      windowSeconds: 60

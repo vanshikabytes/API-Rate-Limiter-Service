@@ -49,7 +49,7 @@ public class UserController {
      */
     @PostMapping
     public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody CreateUserRequest request) {
-        User user = new User(request.getUserId(), request.getTier());
+        User user = new User(request.getUserId(), request.getTier(), null);
         User savedUser = userRepository.save(user);
 
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -83,11 +83,13 @@ public class UserController {
 
     /**
      * Assigns or updates the tier of an existing user.
-     * This update directly impacts how RateLimiterService resolves limits for this
-     * user.
-     * 
+     *
+     * ACCESS: Restricted to ADMIN role only via Spring Security (SecurityConfig.java).
+     * Spring Security intercepts this request before it reaches this method
+     * and rejects it with 401 Unauthorized if the caller is not authenticated as ADMIN.
+     *
      * @param userId  The ID of the user to upgrade/downgrade.
-     * @param request The new tier level (free, gold, platinum).
+     * @param request The new tier level (FREE, PRO, ENTERPRISE, UNLIMITED).
      * @return 200 OK with the updated user details.
      */
     @PatchMapping("/{userId}/tier")
@@ -95,11 +97,10 @@ public class UserController {
             @PathVariable String userId,
             @Valid @RequestBody UpdateTierRequest request) {
 
-        // Task 1 — Auto tier update (no manual reset needed)
-        // 1. update tier in UserRepository
-        User updatedUser = userRepository.updateTier(userId, request.getTier());
+        // Update tier in UserRepository
+        User updatedUser = userRepository.updateTier(userId, request.getTier(), request.getExpiresAt());
 
-        // 2. AUTO-INVALIDATE the old bucket immediately
+        // AUTO-INVALIDATE the old bucket immediately so new limits apply on next request
         rateLimiterService.reset("user:" + userId);
 
         return ResponseEntity.ok(new ApiResponse<>(true,

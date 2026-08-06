@@ -13,13 +13,19 @@ public class RateLimitStatus {
     private final long capacity;
     private final long resetSeconds;
     private final boolean allowed;
+    private final boolean fallback;
 
     public RateLimitStatus(String key, long remainingTokens, long capacity, long resetSeconds, boolean allowed) {
+        this(key, remainingTokens, capacity, resetSeconds, allowed, false);
+    }
+
+    public RateLimitStatus(String key, long remainingTokens, long capacity, long resetSeconds, boolean allowed, boolean fallback) {
         this.key = key;
         this.remainingTokens = remainingTokens;
         this.capacity = capacity;
         this.resetSeconds = resetSeconds;
         this.allowed = allowed;
+        this.fallback = fallback;
     }
 
     public String getKey() {
@@ -40,5 +46,9 @@ public class RateLimitStatus {
 
     public boolean isAllowed() {
         return allowed;
+    }
+
+    public boolean isFallback() {
+        return fallback;
     }
 }
