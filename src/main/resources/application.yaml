@@ -6,6 +6,9 @@ spring:
       # Local Standalone Development
       host: localhost
       port: 6379
+      # Note: Command timeout is configured directly via Lettuce in RedisConfig.java
+      # This ensures the 2-second timeout is enforced on every Redis command,
+      # not just the initial connection handshake.
 
       # -----------------------------------------------------
       # PRODUCTION DEPLOYMENT: REDIS CLUSTER
@@ -33,7 +36,7 @@ server:
 # capacity: Maximum number of tokens in the bucket.
 # ─────────────────────────────────────────────────────────────
 rate-limiter:
-  storage: local
+  storage: redis
 
   # Existing base blocks (prefix-based fallback)
   user:
@@ -77,17 +80,17 @@ rate-limiter:
       refillTokens: 3
       windowSeconds: 60
     pro:
-      capacity: 50
-      refillTokens: 50
+      capacity: 5
+      refillTokens: 5
       windowSeconds: 60
     enterprise:
-      capacity: 200
-      refillTokens: 200
-      windowSeconds: 60
+      capacity: 10
+      refillTokens: 10
+      windowSeconds: 120
     unlimited:
-      capacity: 10000
-      refillTokens: 10000
-      windowSeconds: 60
+      capacity: 20
+      refillTokens: 20
+      windowSeconds: 120
 
 # ─────────────────────────────────────────────────────────────
 # ACTUATOR CONFIGURATION
