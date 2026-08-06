@@ -1,110 +1,95 @@
-# 🛡️ API Rate Limiter Service (Spring Boot)
+# 🛡️ API Rate Limiter Service (Distributed Architecture)
 
-A production-ready, high-performance API Rate Limiter implementation using the **Token Bucket Algorithm** and Spring's **HandlerInterceptor** middleware.
+A production-ready, highly available API Rate Limiter implementation utilizing the **Token Bucket Algorithm**. This service is fully distributed, using **Redis (Memurai)** to guarantee atomicity and thread-safety across multiple application instances.
 
 ---
 
-## Key Features
+## ✨ System Capabilities
 
+### 1. High-Performance Rate Limiting
 - **Token Bucket Algorithm**: Standard algorithm for controlling traffic flow with high precision.
-- **Middleware Integration**: Enforces limits across all `/api/backend/**` endpoints BEFORE they reach the controller.
-- **Thread-Safe Architecture**: Designed using `AtomicLong` and `synchronized` blocks to handle hundreds of concurrent requests without race conditions.
-- **Dynamic Limit Configuration**: Different limits for Users (via `X-User-Id`), IP addresses, and generic API keys.
-- **Production Error Handling**: Custom `RateLimitExceededException` (429), `InvalidKeyException` (400), and `ResourceNotFoundException` (404) with standardized JSON responses.
-- **Actuator Integration**: Real-time health monitoring and performance metrics.
+- **Distributed State**: Uses Redis (Memurai) as the centralized data store so rate limits apply globally, even if you run multiple instances of this Spring Boot service.
+- **Atomic Lua Scripts**: Eliminates race conditions and the need for traditional database locks by using Redis Lua scripts (Read-Modify-Write pattern) to execute token math atomically.
+
+### 2. Architecture & Middleware
+- **Spring `HandlerInterceptor`**: Intercepts and enforces limits across all `/api/backend/**` endpoints BEFORE the request ever reaches the controller.
+- **Dynamic Tiering**: Differentiates clients via the `X-User-Id` header, dynamically applying different capacities and refill rates based on the client.
+
+### 3. Resilience & Graceful Degradation
+- **Fail-Closed / Fail-Open Mechanics**: If the Redis server goes offline, the system is designed to fail gracefully.
+- **Custom Lettuce Configuration**: Overrides the default 60-second command timeout with a strict 2-second timeout using a custom `LettuceConnectionFactory`. 
+- **Instant 503 Responses**: If Redis crashes, the application does not hang. It instantly returns a `503 Service Unavailable` error, protecting the backend from cascading failures.
 
 ---
 
-## 🏗️ System Architecture
-
-The request processing flow ensures that the backend is never overloaded:
+## 🏗️ Architecture Diagram
 
 ```mermaid
-graph LR
-    Client["Client Request"] --> Interceptor["RateLimitInterceptor (Middleware)"]
-    Interceptor --> |"No Tokens"| Block["429 Too Many Requests"]
-    Interceptor --> |"Tokens Available"| Controller["BackendController"]
-    Controller --> Service["BackendService (Logic)"]
-    Service --> Repos["BucketRepository"]
-    Repos --> Bucket["TokenBucket (Atomic Data)"]
+graph TD
+    Client["Client API Request"] --> Interceptor["RateLimitInterceptor (Middleware)"]
+    
+    Interceptor --> |"Check Token Limit"| RateLimiterService["RateLimiterService"]
+    RateLimiterService --> Repo["RedisBucketRepository"]
+    
+    Repo --> |"Atomic Lua Script Execution"| Redis[("Memurai (Redis Data Store)")]
+    
+    Redis -.-> |"Tokens Available"| Interceptor
+    Redis -.-> |"No Tokens"| Block["429 Too Many Requests"]
+    Redis -.-> |"Redis Unreachable"| Fail["503 Service Unavailable"]
+    
+    Interceptor --> |"Access Granted"| Controller["BackendController"]
 ```
 
 ---
 
-## 🛠️ API Endpoints
+## 💻 Environment Setup
 
-### 1. Protected Backend APIs (`/api/backend/**`)
+### Prerequisites
+1. **Java 17+**
+2. **Maven**
+3. **Memurai** (Redis for Windows)
+   - Download from [Memurai.com](https://www.memurai.com/).
+   - Install and verify the service is running on default port `6379`.
 
-_All these endpoints require a token from your bucket. If the limit is reached, they return HTTP 429._
-
-| Method | Endpoint                  | Description                                            |
-| :----- | :------------------------ | :----------------------------------------------------- |
-| `GET`  | `/api/backend/data`       | Fetches general dashboard data.                        |
-| `GET`  | `/api/backend/users/{id}` | Fetches user profile. (Try ID `0` for 404 test)        |
-| `POST` | `/api/backend/process`    | Triggers background work with +50ms simulated latency. |
-
-### 2. Rate Limiter Admin APIs (`/api/rate-limit/**`)
-
-_Administrative endpoints for monitoring and testing the system._
-
-| Method | Endpoint                       | Description                                          |
-| :----- | :----------------------------- | :--------------------------------------------------- |
-| `GET`  | `/api/rate-limit/status/{key}` | Views current bucket state (doesn't consume tokens). |
-| `POST` | `/api/rate-limit/reset/{key}`  | Immediately resets a bucket to its max capacity.     |
-| `GET`  | `/api/rate-limit/health`       | Infrastructure health check.                         |
-
----
-
-## 📑 Header Reference
-
-| Header                  | Description                                                                          |
-| :---------------------- | :----------------------------------------------------------------------------------- |
-| `X-User-Id`             | (Request) Used to identify the client for rate-limiting. Fallback is the IP address. |
-| `X-RateLimit-Remaining` | (Response) How many tokens are left for you in the current window.                   |
-| `X-RateLimit-Capacity`  | (Response) The maximum capacity of your specified bucket.                            |
-| `X-RateLimit-Reset`     | (Response) Seconds until the next token refill.                                      |
-| `Retry-After`           | (Response - 429 Only) Standard HTTP header specifying wait time in seconds.          |
-
----
-
-## 💻 How to Run & Test
-
-### 1. Run Application
-
+### Starting the Application
+Clone the repository and run the application via Maven:
 ```bash
 ./mvnw.cmd spring-boot:run
 ```
 
-### 2. Run Tests
+---
 
-```bash
-./mvnw.cmd test
-```
+## 🧪 Testing Guide
 
-### 3. Test with Postman
+### 1. Normal Rate Limiting Behavior (HTTP 429)
+1. Open Postman or your terminal.
+2. Send a `GET` request to `http://localhost:8080/api/backend/employees/1` with the header `X-user-id: Client-A`.
+3. Check the response headers. You will see `X-RateLimit-Remaining` decrease with each request.
+4. Send multiple requests rapidly.
+5. Once the token bucket is exhausted, the API will reject the request with a **`429 Too Many Requests`** status and a `Retry-After` header.
 
-Import the `API-Rate-Limiter-Collection.json` file. Use the `base_url` variable.
-
-### 4. Test with cURL (Parallel)
-
-Run multiple requests in parallel to trigger a 429:
-
-```bash
-# Windows (PowerShell)
-1..60 | ForEach-Object { curl.exe -s -I -H "X-user-id: vanshika" http://localhost:8080/api/backend/employees/3 | Select-String "HTTP/" }
-
-
-
-## 🧪 Demo Scenario
-
-1.  **Step 1: Normal Access** — Send a request to `/api/data` with `X-User-Id: user-1`. Success! Note the `X-RateLimit-Remaining` header.
-2.  **Step 2: Exhaustion** — Send 5 more requests quickly. The 6th request will return **HTTP 429** with a `Retry-After` reset timer.
-3.  **Step 3: Refill** — Wait for the time indicated in `Retry-After`. Try again. Success!
-4.  **Step 4: Admin Reset** — When blocked, send a `POST` to `/api/rate-limit/reset/user:user-1`. Try the backend again. Immediate success!
-
-
-c:\Users\HP\Documents\API-Rate-Limiter-Service\target\site\jacoco\index.html
+### 2. Graceful Degradation Testing (HTTP 503)
+This test validates the custom 2-second Lettuce command timeout.
+1. Ensure the Spring Boot application is running normally.
+2. Open a Command Prompt as Administrator and stop the Redis service:
+   ```cmd
+   net stop memurai
+   ```
+3. Immediately send a request to the API via Postman.
+4. **Validation:** The request will *not* hang for 60 seconds. Within 2 seconds, the application will forcefully timeout the Redis connection attempt and return a **`503 Service Unavailable`** response.
+5. Restart Memurai (`net start memurai`) to see the system instantly recover and resume normal operations.
 
 ---
-*Created by vanshika - API Rate Limiter Service Implementation*
-```
+
+## 📑 HTTP Header Reference
+
+| Header | Type | Description |
+| :--- | :--- | :--- |
+| `X-User-Id` | **Request** | Identifies the client to determine their specific rate-limit tier. |
+| `X-RateLimit-Capacity` | **Response** | The total maximum capacity of tokens for this user's bucket. |
+| `X-RateLimit-Remaining` | **Response** | The number of tokens currently left for this user. |
+| `X-RateLimit-Reset` | **Response** | Time in seconds until the bucket is completely refilled. |
+| `Retry-After` | **Response** | (Present on 429 only). The time in seconds the client must wait before retrying. |
+
+---
+*Created by Vanshika - Distributed API Rate Limiter Service*
