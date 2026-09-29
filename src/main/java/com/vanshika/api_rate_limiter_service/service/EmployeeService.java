@@ -1,10 +1,10 @@
 package com.vanshika.api_rate_limiter_service.service;
 
+import lombok.extern.slf4j.Slf4j;
+
 import com.vanshika.api_rate_limiter_service.exception.ResourceNotFoundException;
 import com.vanshika.api_rate_limiter_service.model.Employee;
 import com.vanshika.api_rate_limiter_service.repository.EmployeeRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,9 +17,8 @@ import java.util.List;
  * as a cross-cutting concern in the interceptor layer.
  */
 @Service
+@Slf4j
 public class EmployeeService {
-
-    private static final Logger log = LoggerFactory.getLogger(EmployeeService.class);
     private final EmployeeRepository employeeRepository;
 
     public EmployeeService(EmployeeRepository employeeRepository) {
@@ -90,3 +89,4 @@ public class EmployeeService {
         log.info("[EmployeeService] Employee deleted successfully: id={}", id);
     }
 }
+

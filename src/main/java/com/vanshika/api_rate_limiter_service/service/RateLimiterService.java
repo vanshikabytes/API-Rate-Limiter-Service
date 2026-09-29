@@ -1,5 +1,7 @@
 package com.vanshika.api_rate_limiter_service.service;
 
+import lombok.extern.slf4j.Slf4j;
+
 import com.vanshika.api_rate_limiter_service.config.RateLimiterProperties;
 import com.vanshika.api_rate_limiter_service.config.properties.TierConfig;
 import com.vanshika.api_rate_limiter_service.exception.InvalidKeyException;
@@ -9,8 +11,6 @@ import com.vanshika.api_rate_limiter_service.model.TokenBucket;
 import com.vanshika.api_rate_limiter_service.model.User;
 import com.vanshika.api_rate_limiter_service.repository.BucketRepository;
 import com.vanshika.api_rate_limiter_service.repository.UserRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.Optional;
@@ -23,9 +23,8 @@ import java.util.Optional;
  * and the token bucket algorithm.
  */
 @Service
+@Slf4j
 public class RateLimiterService {
-
-    private static final Logger log = LoggerFactory.getLogger(RateLimiterService.class);
 
     /**
      * Interface for token bucket storage.

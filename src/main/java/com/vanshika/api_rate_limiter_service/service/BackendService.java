@@ -1,10 +1,10 @@
 package com.vanshika.api_rate_limiter_service.service;
 
+import lombok.extern.slf4j.Slf4j;
+
 import com.vanshika.api_rate_limiter_service.dto.BackendResponse;
 import com.vanshika.api_rate_limiter_service.dto.UserResponse;
 import com.vanshika.api_rate_limiter_service.exception.ResourceNotFoundException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -18,9 +18,8 @@ import java.util.Map;
  * about processing data, not who is calling it or how often.
  */
 @Service
+@Slf4j
 public class BackendService {
-
-    private static final Logger log = LoggerFactory.getLogger(BackendService.class);
 
     // Simulate real-world database or network latency.
     private static final long SIMULATED_LATENCY_MS = 50;
@@ -94,3 +93,4 @@ public class BackendService {
         }
     }
 }
+

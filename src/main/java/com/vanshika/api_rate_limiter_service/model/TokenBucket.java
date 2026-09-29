@@ -1,14 +1,14 @@
 package com.vanshika.api_rate_limiter_service.model;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+
 
 /**
  * A true Token Bucket implementation with continuous refill.
  * Tokens are added gradually over time rather than in bursts at window boundaries.
  */
+@Slf4j
 public class TokenBucket {
-    private static final Logger logger = LoggerFactory.getLogger(TokenBucket.class);
 
     private final long capacity;
     private final double refillRatePerSecond;
@@ -33,11 +33,11 @@ public class TokenBucket {
     public synchronized boolean tryConsume() {
         refill();
         
-        logger.debug("Tokens before consume: {}", tokens);
+        log.debug("Tokens before consume: {}", tokens);
         
         if (tokens >= 1.0) {
             tokens -= 1.0;
-            logger.debug("Tokens after consume: {}", tokens);
+            log.debug("Tokens after consume: {}", tokens);
             return true;
         }
         return false;
@@ -78,7 +78,8 @@ public class TokenBucket {
             double tokensToAdd = elapsedSeconds * refillRatePerSecond;
             tokens = Math.min(capacity, tokens + tokensToAdd);
             lastRefillTime = now;
-            logger.debug("Refilled tokens. Current tokens: {}", tokens);
+            log.debug("Refilled tokens. Current tokens: {}", tokens);
         }
     }
 }
+

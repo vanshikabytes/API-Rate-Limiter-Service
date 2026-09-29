@@ -44,10 +44,14 @@ public class SecurityConfig {
             // Define endpoint-level access rules
             .authorizeHttpRequests(auth -> auth
 
-                // ADMIN-ONLY: Only the tier upgrade endpoint requires authentication
+                // ADMIN-ONLY: Phase 2 — Tier upgrade requires ADMIN role
                 .requestMatchers(HttpMethod.PATCH, "/api/users/*/tier").hasRole("ADMIN")
 
-                // Everything else is open — Employee APIs, User creation, etc.
+                // ADMIN-ONLY: Phase 3 — All Access Control APIs require ADMIN role
+                // This protects PATCH, GET, DELETE, and POST /api/admin/access/users/**
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+                // Everything else is open — Employee APIs, User creation, backend simulation, etc.
                 .anyRequest().permitAll()
             )
 
