@@ -103,3 +103,17 @@ management:
   endpoint:
     health:
       show-details: always
+
+# ─────────────────────────────────────────────────────────────
+# LOGGING CONFIGURATION
+# Change the level below to control what appears in the console:
+#   INFO  → Only key business events (default for production)
+#   DEBUG → Detailed flow: Redis keys, method args, decisions
+#   TRACE → Everything: framework internals + all of the above
+# ─────────────────────────────────────────────────────────────
+logging:
+  level:
+    root: INFO
+    com.vanshika.api_rate_limiter_service: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"

@@ -1,10 +1,10 @@
 package com.vanshika.api_rate_limiter_service.controller;
 
+import lombok.extern.slf4j.Slf4j;
+
 import com.vanshika.api_rate_limiter_service.dto.BackendResponse;
 import com.vanshika.api_rate_limiter_service.model.ApiResponse;
 import com.vanshika.api_rate_limiter_service.service.BackendService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,9 +17,8 @@ import org.springframework.web.bind.annotation.*;
  */
 @RestController
 @RequestMapping("/api/backend")
+@Slf4j
 public class BackendController {
-
-    private static final Logger log = LoggerFactory.getLogger(BackendController.class);
     private final BackendService backendService;
 
     // We use constructor injection for better testability and immutability.
@@ -75,3 +74,4 @@ public class BackendController {
         );
     }
 }
+

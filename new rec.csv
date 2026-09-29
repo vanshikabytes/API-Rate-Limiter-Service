@@ -1,0 +1,2 @@
+userId,durationSeconds,reason,
+client y,500,Missing userId row should fail

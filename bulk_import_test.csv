@@ -1,0 +1,6 @@
+userId,durationSeconds,reason
+Client-X,3600,Hacking attempt
+Client-Y,,Permanent ban due to fraud
+,500,Missing userId row should fail
+Client-Z,7200,Too many requests
+Client-W,100,Testing short block
